@@ -1,0 +1,59 @@
+{
+  "env": {
+    "node": true,
+    "es2021": true,
+    "jest": true
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 12,
+    "sourceType": "module"
+  },
+  "rules": {
+    "indent": ["error", 2],
+    "linebreak-style": ["error", "unix"],
+    "quotes": ["error", "single"],
+    "semi": ["error", "always"],
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": "warn",
+    "no-debugger": "error",
+    "no-duplicate-imports": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "prefer-arrow-callback": "warn",
+    "prefer-template": "warn",
+    "no-multi-spaces": "error",
+    "no-multiple-empty-lines": ["error", { "max": 1 }],
+    "no-trailing-spaces": "error",
+    "object-curly-spacing": ["error", "always"],
+    "array-bracket-spacing": ["error", "never"],
+    "comma-dangle": ["error", "never"],
+    "comma-spacing": ["error", { "before": false, "after": true }],
+    "keyword-spacing": "error",
+    "space-before-blocks": "error",
+    "space-before-function-paren": ["error", {
+      "anonymous": "always",
+      "named": "never",
+      "asyncArrow": "always"
+    }],
+    "arrow-spacing": "error",
+    "arrow-parens": ["error", "as-needed"],
+    "arrow-body-style": ["warn", "as-needed"],
+    "no-useless-return": "error",
+    "no-useless-concat": "error",
+    "prefer-destructuring": ["warn", {
+      "object": true,
+      "array": false
+    }],
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-return-await": "error",
+    "require-await": "error",
+    "no-throw-literal": "error",
+    "prefer-promise-reject-errors": "error",
+    "no-async-promise-executor": "error"
+  }
+}

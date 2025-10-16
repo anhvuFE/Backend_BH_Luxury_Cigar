@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: bh_luxury_mongodb
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password123}
+      MONGO_INITDB_DATABASE: bh_luxury_cigar
+    volumes:
+      - mongodb_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - bh_luxury_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bh_luxury_backend
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      MONGODB_URI: mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password123}@mongodb:27017/bh_luxury_cigar?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key_here}
+    depends_on:
+      - mongodb
+    volumes:
+      - ./src:/app/src:ro
+      - ./uploads:/app/uploads
+    networks:
+      - bh_luxury_network
+    command: npm run dev
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: bh_luxury_mongo_express
+    restart: unless-stopped
+    ports:
+      - '8081:8081'
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USERNAME:-admin}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD:-password123}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password123}@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: ${ME_USERNAME:-admin}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${ME_PASSWORD:-admin123}
+    depends_on:
+      - mongodb
+    networks:
+      - bh_luxury_network
+
+networks:
+  bh_luxury_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
