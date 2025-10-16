@@ -260,17 +260,262 @@ exports.logout = async (req, res) => {
   });
 };
 
-// @desc    Get all users (admin only)
+// @desc    Get all users (admin only) with filtering and pagination
 // @route   GET /api/auth/users
 // @access  Private/Admin
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      status,
+      role,
+      sort = '-createdAt'
+    } = req.query;
+
+    const query = {};
+
+    // Search filter
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Status filter
+    if (status) {
+      query.isActive = status === 'active';
+    }
+
+    // Role filter
+    if (role) {
+      query.role = role;
+    }
+
+    const skip = (page - 1) * limit;
+    const total = await User.countDocuments(query);
+
+    const users = await User.find(query)
+      .select('-password')
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get customer statistics for each user
+    const usersWithStats = await Promise.all(users.map(async (user) => {
+      const Order = require('../models/Order');
+      const orders = await Order.find({ user: user._id });
+      const totalOrders = orders.length;
+      const totalSpent = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+
+      return {
+        ...user.toObject(),
+        totalOrders,
+        totalSpent
+      };
+    }));
 
     res.status(200).json({
       success: true,
-      count: users.length,
-      data: users
+      count: usersWithStats.length,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / limit),
+      data: usersWithStats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get user by ID (admin only)
+// @route   GET /api/auth/users/:id
+// @access  Private/Admin
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Get user's order history
+    const Order = require('../models/Order');
+    const orders = await Order.find({ user: user._id })
+      .sort('-createdAt')
+      .limit(10);
+
+    const totalOrders = await Order.countDocuments({ user: user._id });
+    const totalSpent = await Order.aggregate([
+      { $match: { user: user._id, isPaid: true } },
+      { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...user.toObject(),
+        recentOrders: orders,
+        totalOrders,
+        totalSpent: totalSpent[0]?.total || 0
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Update user (admin only)
+// @route   PUT /api/auth/users/:id
+// @access  Private/Admin
+exports.updateUser = async (req, res) => {
+  try {
+    const fieldsToUpdate = {
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      address: req.body.address,
+      role: req.body.role,
+      isActive: req.body.isActive
+    };
+
+    // Remove undefined fields
+    Object.keys(fieldsToUpdate).forEach(key =>
+      fieldsToUpdate[key] === undefined && delete fieldsToUpdate[key]
+    );
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      fieldsToUpdate,
+      {
+        new: true,
+        runValidators: true
+      }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Delete user (admin only)
+// @route   DELETE /api/auth/users/:id
+// @access  Private/Admin
+exports.deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Don't allow deleting admin users
+    if (user.role === 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete admin users'
+      });
+    }
+
+    await user.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get customer statistics (admin only)
+// @route   GET /api/auth/users/stats
+// @access  Private/Admin
+exports.getUserStats = async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments({ role: 'user' });
+    const activeUsers = await User.countDocuments({ role: 'user', isActive: true });
+    const inactiveUsers = await User.countDocuments({ role: 'user', isActive: false });
+
+    const thisMonth = new Date();
+    thisMonth.setDate(1);
+    const newUsersThisMonth = await User.countDocuments({
+      role: 'user',
+      createdAt: { $gte: thisMonth }
+    });
+
+    // Get top customers by spending
+    const Order = require('../models/Order');
+    const topCustomers = await Order.aggregate([
+      { $match: { isPaid: true } },
+      {
+        $group: {
+          _id: '$user',
+          totalSpent: { $sum: '$totalPrice' },
+          orderCount: { $sum: 1 }
+        }
+      },
+      { $sort: { totalSpent: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          name: '$user.name',
+          email: '$user.email',
+          totalSpent: 1,
+          orderCount: 1
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers,
+        newUsersThisMonth,
+        topCustomers
+      }
     });
   } catch (error) {
     res.status(500).json({
