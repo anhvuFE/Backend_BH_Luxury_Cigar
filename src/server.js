@@ -29,6 +29,7 @@ const authRoutes = require('./routes/auth');
 const blogRoutes = require('./routes/blogs');
 const orderRoutes = require('./routes/orders');
 const categoryRoutes = require('./routes/categories');
+const analyticsRoutes = require('./routes/analytics');
 
 // Routes
 app.get('/', (req, res) => {
@@ -41,7 +42,8 @@ app.get('/', (req, res) => {
       products: '/api/products',
       categories: '/api/categories',
       blogs: '/api/blogs',
-      orders: '/api/orders'
+      orders: '/api/orders',
+      analytics: '/api/analytics'
     }
   });
 });
@@ -60,6 +62,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Swagger Documentation - Must be after API routes
 app.use('/api', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

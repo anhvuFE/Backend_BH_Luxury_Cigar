@@ -9,7 +9,11 @@ const {
   updatePassword,
   forgotPassword,
   logout,
-  getAllUsers
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  getUserStats
 } = require('../controllers/authController');
 
 // Public routes
@@ -23,7 +27,11 @@ router.get('/me', protect, getMe);
 router.put('/updatedetails', protect, updateDetails);
 router.put('/updatepassword', protect, updatePassword);
 
-// Admin routes
+// Admin routes - Customer management
+router.get('/users/stats', protect, admin, getUserStats);
 router.get('/users', protect, admin, getAllUsers);
+router.get('/users/:id', protect, admin, getUserById);
+router.put('/users/:id', protect, admin, updateUser);
+router.delete('/users/:id', protect, admin, deleteUser);
 
 module.exports = router;
