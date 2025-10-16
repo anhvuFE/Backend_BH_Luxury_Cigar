@@ -43,6 +43,17 @@ const authorize = (...roles) => {
   };
 };
 
+// Admin middleware - shorthand for authorize('admin')
+const admin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({
+      message: 'Access denied. Admin role required.'
+    });
+  }
+};
+
 // Optional auth - doesn't require auth but adds user if token exists
 const optionalAuth = async (req, res, next) => {
   try {
@@ -64,4 +75,4 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { protect, authorize, optionalAuth };
+module.exports = { protect, authorize, admin, optionalAuth };
