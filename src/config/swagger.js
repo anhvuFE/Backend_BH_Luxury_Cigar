@@ -103,6 +103,10 @@ const options = {
         description: 'Authentication endpoints'
       },
       {
+        name: 'Profile',
+        description: 'User profile management'
+      },
+      {
         name: 'Products',
         description: 'Product management'
       },
