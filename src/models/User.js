@@ -41,6 +41,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  favorites: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
+  }],
   isActive: {
     type: Boolean,
     default: true

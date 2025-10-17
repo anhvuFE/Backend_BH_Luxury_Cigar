@@ -12,6 +12,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
+
 // MongoDB connection
 const connectDB = async () => {
   try {
@@ -26,6 +29,7 @@ const connectDB = async () => {
 // Import routes
 const productRoutes = require('./routes/products');
 const authRoutes = require('./routes/auth');
+const profileRoutes = require('./routes/profile');
 const blogRoutes = require('./routes/blogs');
 const orderRoutes = require('./routes/orders');
 const categoryRoutes = require('./routes/categories');
@@ -39,11 +43,13 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: {
       auth: '/api/auth',
+      profile: '/api/profile',
       products: '/api/products',
       categories: '/api/categories',
       blogs: '/api/blogs',
       orders: '/api/orders',
-      analytics: '/api/analytics'
+      analytics: '/api/analytics',
+      docs: '/api-docs'
     }
   });
 });
@@ -58,14 +64,15 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
-// Swagger Documentation - Must be after API routes
-app.use('/api', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
