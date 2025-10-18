@@ -14,7 +14,7 @@ exports.getAllProducts = async (req, res) => {
       isNew,
       sort,
       page = 1,
-      limit = 10
+      limit = 9
     } = req.query;
 
     // Build query
