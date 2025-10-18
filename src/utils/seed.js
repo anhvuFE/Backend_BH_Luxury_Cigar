@@ -39,14 +39,14 @@ const seedData = async () => {
     const users = await User.insertMany([
       {
         name: 'Admin User',
-        email: 'admin@bhcigar.com',
+        email: 'admin@gmail.com',
         password: adminPassword,
         role: 'admin',
         phone: '123-456-7890'
       },
       {
-        name: 'John Doe',
-        email: 'john@example.com',
+        name: 'Xuan Anh',
+        email: 'xanh@gmail.com',
         password: userPassword,
         role: 'user',
         phone: '098-765-4321'
@@ -536,6 +536,93 @@ const seedData = async () => {
           binder: 'N/A',
           filler: 'N/A'
         }
+      },
+      {
+        name: 'Bộ Phụ Kiện Gốm Bát Lửa & Dao Cắt COHIBA BEHIKE X',
+        brand: 'HABANOS',
+        price: 14168000,
+        image: '/assets/images/accessories/cohiba-set.png',
+        description: 'Bộ phụ kiện cao cấp gồm bát lửa gốm và dao cắt xi gà chính hãng COHIBA BEHIKE X.',
+        inStock: true,
+        isFeatured: true,
+        category: categories[6].name,
+        specifications: {
+          origin: 'Cuba',
+          size: 'Set bộ đôi',
+          strength: 'N/A',
+          wrapper: 'Gốm cao cấp',
+          binder: 'N/A',
+          filler: 'N/A'
+        }
+      },
+      {
+        name: 'Dao Cắt Xi Gà Hai Lưỡi H.UPMANN',
+        brand: 'HABANOS',
+        price: 286000,
+        image: '/assets/images/accessories/upmann-cutter.png',
+        description: 'Dao cắt xi gà hai lưỡi chính hãng H.UPMANN với thiết kế tinh xảo và độ sắc bén cao.',
+        inStock: true,
+        category: categories[6].name,
+        specifications: {
+          origin: 'Cuba',
+          size: 'Compact',
+          strength: 'N/A',
+          wrapper: 'Thép không gỉ',
+          binder: 'N/A',
+          filler: 'N/A'
+        }
+      },
+      {
+        name: 'Gạt Tàn Xi Gà Bằng Gốm FLOR DE CASTILLO SNAKE',
+        brand: 'FLOR DE CASTILLO',
+        price: 3348000,
+        image: '/assets/images/accessories/snake-ashtray.png',
+        description: 'Gạt tàn xi gà bằng gốm cao cấp với họa tiết rắn độc đáo, thiết kế nghệ thuật từ FLOR DE CASTILLO.',
+        inStock: true,
+        category: categories[6].name,
+        specifications: {
+          origin: 'Nicaragua',
+          size: 'Large',
+          strength: 'N/A',
+          wrapper: 'Gốm sứ cao cấp',
+          binder: 'N/A',
+          filler: 'N/A'
+        }
+      },
+      {
+        name: 'Gạt Tàn Xi Gà Bằng Gốm FLOR DE CASTILLO ART',
+        brand: 'FLOR DE CASTILLO',
+        price: 3348000,
+        image: '/assets/images/accessories/art-ashtray.png',
+        description: 'Gạt tàn xi gà bằng gốm nghệ thuật với thiết kế tinh tế và màu sắc đẹp mắt từ FLOR DE CASTILLO.',
+        inStock: true,
+        category: categories[6].name,
+        specifications: {
+          origin: 'Nicaragua',
+          size: 'Large',
+          strength: 'N/A',
+          wrapper: 'Gốm sứ nghệ thuật',
+          binder: 'N/A',
+          filler: 'N/A'
+        }
+      },
+      {
+        name: 'Gạt Tàn Gốm S.T. Dupont Fender 006425',
+        brand: 'S.T. DUPONT',
+        price: 13996800,
+        image: '/assets/images/accessories/dupont-fender.png',
+        description: 'Gạt tàn gốm cao cấp từ thương hiệu S.T. Dupont phối hợp với Fender, thiết kế độc quyền và sang trọng.',
+        inStock: true,
+        isFeatured: true,
+        category: categories[6].name,
+        specifications: {
+          origin: 'France',
+          size: 'Premium',
+          strength: 'N/A',
+          wrapper: 'Gốm sứ cao cấp',
+          binder: 'N/A',
+          filler: 'N/A'
+        }
       }
     ]);
     console.log('Created products');
@@ -577,10 +664,10 @@ const seedData = async () => {
 
     console.log('\\n=== Seed Data Created Successfully ===');
     console.log('\\nAdmin Login:');
-    console.log('Email: admin@bhcigar.com');
+    console.log('Email: admin@gmail.com');
     console.log('Password: 123456');
     console.log('\\nUser Login:');
-    console.log('Email: john@example.com');
+    console.log('Email: xanh@gmail.com');
     console.log('Password: 123456');
 
     process.exit(0);

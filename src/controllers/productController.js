@@ -1,12 +1,20 @@
 const Product = require('../models/Product');
 const User = require('../models/User');
 
-// @desc    Get all products
+// @desc    Get all products with pagination
 // @route   GET /api/products
 // @access  Public
 exports.getAllProducts = async (req, res) => {
   try {
-    const { category, inStock, isFeatured, isNew, sort, limit = 20 } = req.query;
+    const {
+      category,
+      inStock,
+      isFeatured,
+      isNew,
+      sort,
+      page = 1,
+      limit = 10
+    } = req.query;
 
     // Build query
     const query = {};
@@ -22,14 +30,37 @@ exports.getAllProducts = async (req, res) => {
     else if (sort === 'name') sortBy.name = 1;
     else sortBy.createdAt = -1;
 
+    // Pagination
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Get total count for pagination info
+    const totalProducts = await Product.countDocuments(query);
+    const totalPages = Math.ceil(totalProducts / limitNumber);
+
+    // Get products with pagination
     const products = await Product
       .find(query)
       .sort(sortBy)
-      .limit(parseInt(limit));
+      .skip(skip)
+      .limit(limitNumber);
+
+    // Pagination info
+    const pagination = {
+      current: pageNumber,
+      total: totalPages,
+      hasNext: pageNumber < totalPages,
+      hasPrev: pageNumber > 1,
+      next: pageNumber < totalPages ? pageNumber + 1 : null,
+      prev: pageNumber > 1 ? pageNumber - 1 : null
+    };
 
     res.status(200).json({
       success: true,
       count: products.length,
+      total: totalProducts,
+      pagination,
       data: products
     });
   } catch (error) {
