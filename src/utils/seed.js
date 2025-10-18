@@ -33,8 +33,8 @@ const seedData = async () => {
     console.log('Created categories');
 
     // Create admin user
-    const adminPassword = await bcrypt.hash('admin123', 10);
-    const userPassword = await bcrypt.hash('user123', 10);
+    const adminPassword = await bcrypt.hash('123456', 10);
+    const userPassword = await bcrypt.hash('123456', 10);
 
     const users = await User.insertMany([
       {
@@ -578,10 +578,10 @@ const seedData = async () => {
     console.log('\\n=== Seed Data Created Successfully ===');
     console.log('\\nAdmin Login:');
     console.log('Email: admin@bhcigar.com');
-    console.log('Password: admin123');
+    console.log('Password: 123456');
     console.log('\\nUser Login:');
     console.log('Email: john@example.com');
-    console.log('Password: user123');
+    console.log('Password: 123456');
 
     process.exit(0);
   } catch (error) {
