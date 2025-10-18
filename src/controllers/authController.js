@@ -38,16 +38,19 @@ exports.register = async (req, res) => {
     // Generate token
     const token = generateToken(user);
 
+    // Create user object with proper id format
+    const userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone
+    };
+
     res.status(201).json({
       success: true,
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone
-      }
+      user: userResponse
     });
   } catch (error) {
     res.status(400).json({
@@ -103,17 +106,20 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user);
 
+    // Create user object with proper id format
+    const userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      avatar: user.avatar
+    };
+
     res.status(200).json({
       success: true,
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        avatar: user.avatar
-      }
+      user: userResponse
     });
   } catch (error) {
     res.status(500).json({
