@@ -1,6 +1,7 @@
 const Product = require('../models/Product');
 const User = require('../models/User');
 
+
 // @desc    Get all products with pagination
 // @route   GET /api/products
 // @access  Public
