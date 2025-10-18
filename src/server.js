@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const session = require('express-session');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 require('dotenv').config();
@@ -8,9 +9,24 @@ require('dotenv').config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'bh-luxury-cigar-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true if using HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));
@@ -34,6 +50,7 @@ const blogRoutes = require('./routes/blogs');
 const orderRoutes = require('./routes/orders');
 const categoryRoutes = require('./routes/categories');
 const analyticsRoutes = require('./routes/analytics');
+const cartRoutes = require('./routes/cart');
 
 // Routes
 app.get('/', (req, res) => {
@@ -49,6 +66,7 @@ app.get('/', (req, res) => {
       blogs: '/api/blogs',
       orders: '/api/orders',
       analytics: '/api/analytics',
+      cart: '/api/cart',
       docs: '/api-docs'
     }
   });
@@ -70,6 +88,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/cart', cartRoutes);
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

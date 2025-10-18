@@ -21,6 +21,8 @@
  *     description: Blog post management
  *   - name: Orders
  *     description: Order management
+ *   - name: Cart
+ *     description: Shopping cart management (session-based)
  */
 
 // ========== AUTH ENDPOINTS ==========
@@ -629,6 +631,155 @@
  *         description: Order cancelled
  *       400:
  *         description: Cannot cancel shipped/delivered orders
+ */
+
+// ========== CART ENDPOINTS ==========
+/**
+ * @swagger
+ * /api/cart:
+ *   get:
+ *     summary: Get cart items
+ *     tags: [Cart]
+ *     description: Get all items in the current session cart (no authentication required)
+ *     responses:
+ *       200:
+ *         description: Cart retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 count:
+ *                   type: number
+ *                   description: Number of unique items
+ *                 totalItems:
+ *                   type: number
+ *                   description: Total quantity of all items
+ *                 itemsPrice:
+ *                   type: number
+ *                   description: Total price of all items
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       productId:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       brand:
+ *                         type: string
+ *                       price:
+ *                         type: number
+ *                       originalPrice:
+ *                         type: number
+ *                       image:
+ *                         type: string
+ *                       quantity:
+ *                         type: number
+ *                       addedAt:
+ *                         type: string
+ *                         format: date-time
+ */
+
+/**
+ * @swagger
+ * /api/cart:
+ *   post:
+ *     summary: Add item to cart
+ *     tags: [Cart]
+ *     description: Add a product to the session cart (no authentication required)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [productId]
+ *             properties:
+ *               productId:
+ *                 type: string
+ *                 description: Product ID to add
+ *               quantity:
+ *                 type: number
+ *                 default: 1
+ *                 minimum: 1
+ *     responses:
+ *       200:
+ *         description: Item added to cart successfully
+ *       400:
+ *         description: Invalid request or product out of stock
+ *       404:
+ *         description: Product not found
+ */
+
+/**
+ * @swagger
+ * /api/cart/{productId}:
+ *   put:
+ *     summary: Update cart item quantity
+ *     tags: [Cart]
+ *     description: Update the quantity of an item in the cart
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Product ID to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [quantity]
+ *             properties:
+ *               quantity:
+ *                 type: number
+ *                 minimum: 1
+ *     responses:
+ *       200:
+ *         description: Cart item updated successfully
+ *       400:
+ *         description: Invalid quantity
+ *       404:
+ *         description: Item not found in cart
+ */
+
+/**
+ * @swagger
+ * /api/cart/{productId}:
+ *   delete:
+ *     summary: Remove item from cart
+ *     tags: [Cart]
+ *     description: Remove a specific item from the cart
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Product ID to remove
+ *     responses:
+ *       200:
+ *         description: Item removed from cart successfully
+ *       404:
+ *         description: Item not found in cart
+ */
+
+/**
+ * @swagger
+ * /api/cart:
+ *   delete:
+ *     summary: Clear cart
+ *     tags: [Cart]
+ *     description: Remove all items from the cart
+ *     responses:
+ *       200:
+ *         description: Cart cleared successfully
  */
 
 module.exports = {};
