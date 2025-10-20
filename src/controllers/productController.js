@@ -9,9 +9,12 @@ exports.getAllProducts = async (req, res) => {
   try {
     const {
       category,
+      search,
       inStock,
       isFeatured,
       isNew,
+      minPrice,
+      maxPrice,
       sort,
       page = 1,
       limit = 9
@@ -20,9 +23,23 @@ exports.getAllProducts = async (req, res) => {
     // Build query
     const query = {};
     if (category) query.category = category;
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { brand: { $regex: search, $options: 'i' } }
+      ];
+    }
     if (inStock !== undefined) query.inStock = inStock === 'true';
     if (isFeatured !== undefined) query.isFeatured = isFeatured === 'true';
     if (isNew !== undefined) query.isNew = isNew === 'true';
+
+    // Price range filtering
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = parseFloat(minPrice);
+      if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+    }
 
     // Build sort
     let sortBy = {};
