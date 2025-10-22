@@ -79,4 +79,9 @@ productSchema.pre('save', function(next) {
   next();
 });
 
+productSchema.index({ category: 1, createdAt: -1 });
+productSchema.index({ isFeatured: 1, inStock: 1 });
+productSchema.index({ isNew: 1, createdAt: -1 });
+productSchema.index({ price: 1 });
+
 module.exports = mongoose.model('Product', productSchema);

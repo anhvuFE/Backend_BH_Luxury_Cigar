@@ -1,6 +1,15 @@
 const Product = require('../models/Product');
 const User = require('../models/User');
 
+const formatLeanProduct = (doc) => {
+  if (!doc) return null;
+  const { _id, __v, ...rest } = doc;
+  return {
+    ...rest,
+    id: doc.id || (_id && typeof _id.toString === 'function' ? _id.toString() : _id)
+  };
+};
+
 
 // @desc    Get all products with pagination
 // @route   GET /api/products
@@ -54,15 +63,19 @@ exports.getAllProducts = async (req, res) => {
     const skip = (pageNumber - 1) * limitNumber;
 
     // Get total count for pagination info
-    const totalProducts = await Product.countDocuments(query);
+    const [totalProducts, products] = await Promise.all([
+      Product.countDocuments(query),
+      Product
+        .find(query)
+        .sort(sortBy)
+        .skip(skip)
+        .limit(limitNumber)
+        .lean()
+    ]);
+
     const totalPages = Math.ceil(totalProducts / limitNumber);
 
-    // Get products with pagination
-    const products = await Product
-      .find(query)
-      .sort(sortBy)
-      .skip(skip)
-      .limit(limitNumber);
+    const formattedProducts = products.map(formatLeanProduct);
 
     // Pagination info
     const pagination = {
@@ -76,10 +89,10 @@ exports.getAllProducts = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      count: products.length,
+      count: formattedProducts.length,
       total: totalProducts,
       pagination,
-      data: products
+      data: formattedProducts
     });
   } catch (error) {
     res.status(500).json({
@@ -89,12 +102,13 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
+
 // @desc    Get single product
 // @route   GET /api/products/:id
 // @access  Public
 exports.getProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).lean();
 
     if (!product) {
       return res.status(404).json({
@@ -105,7 +119,7 @@ exports.getProduct = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: product
+      data: formatLeanProduct(product)
     });
   } catch (error) {
     res.status(500).json({
@@ -201,12 +215,15 @@ exports.getFeaturedProducts = async (req, res) => {
   try {
     const products = await Product
       .find({ isFeatured: true, inStock: true })
-      .limit(8);
+      .limit(8)
+      .lean();
+
+    const formattedProducts = products.map(formatLeanProduct);
 
     res.status(200).json({
       success: true,
-      count: products.length,
-      data: products
+      count: formattedProducts.length,
+      data: formattedProducts
     });
   } catch (error) {
     res.status(500).json({
@@ -224,12 +241,15 @@ exports.getNewProducts = async (req, res) => {
     const products = await Product
       .find({ isNew: true, inStock: true })
       .sort('-createdAt')
-      .limit(8);
+      .limit(8)
+      .lean();
+
+    const formattedProducts = products.map(formatLeanProduct);
 
     res.status(200).json({
       success: true,
-      count: products.length,
-      data: products
+      count: formattedProducts.length,
+      data: formattedProducts
     });
   } catch (error) {
     res.status(500).json({

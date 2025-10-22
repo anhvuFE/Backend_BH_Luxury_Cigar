@@ -77,4 +77,8 @@ blogPostSchema.pre('save', function(next) {
   next();
 });
 
+blogPostSchema.index({ isPublished: 1, createdAt: -1 });
+blogPostSchema.index({ category: 1, createdAt: -1 });
+blogPostSchema.index({ views: -1 });
+
 module.exports = mongoose.model('BlogPost', blogPostSchema);

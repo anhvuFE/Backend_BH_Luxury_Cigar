@@ -96,4 +96,7 @@ userSchema.methods.generateAuthToken = function() {
   );
 };
 
+userSchema.index({ role: 1, createdAt: -1 });
+userSchema.index({ isActive: 1 });
+
 module.exports = mongoose.model('User', userSchema);
