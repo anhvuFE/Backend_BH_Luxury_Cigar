@@ -11,81 +11,89 @@ exports.getDashboardStats = async (req, res) => {
     const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // Get revenue statistics
-    const revenueStats = await Order.aggregate([
-      { $match: { isPaid: true } },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: '$totalPrice' },
-          totalOrders: { $sum: 1 }
+    const [
+      orderStatsAggregate,
+      [totalCustomers, newCustomersThisMonth],
+      [totalProducts, inStockProducts, featuredProducts]
+    ] = await Promise.all([
+      Order.aggregate([
+        {
+          $facet: {
+            overall: [
+              { $match: { isPaid: true } },
+              {
+                $group: {
+                  _id: null,
+                  totalRevenue: { $sum: '$totalPrice' },
+                  totalOrders: { $sum: 1 }
+                }
+              }
+            ],
+            currentMonth: [
+              { $match: { isPaid: true, createdAt: { $gte: thisMonth } } },
+              {
+                $group: {
+                  _id: null,
+                  revenue: { $sum: '$totalPrice' },
+                  orders: { $sum: 1 }
+                }
+              }
+            ],
+            previousMonth: [
+              { $match: { isPaid: true, createdAt: { $gte: lastMonth, $lt: thisMonth } } },
+              {
+                $group: {
+                  _id: null,
+                  revenue: { $sum: '$totalPrice' },
+                  orders: { $sum: 1 }
+                }
+              }
+            ],
+            byStatus: [
+              {
+                $group: {
+                  _id: '$orderStatus',
+                  count: { $sum: 1 }
+                }
+              }
+            ]
+          }
+        },
+        {
+          $project: {
+            overall: { $arrayElemAt: ['$overall', 0] },
+            currentMonth: { $arrayElemAt: ['$currentMonth', 0] },
+            previousMonth: { $arrayElemAt: ['$previousMonth', 0] },
+            byStatus: '$byStatus'
+          }
         }
-      }
+      ]),
+      Promise.all([
+        User.countDocuments({ role: 'user' }),
+        User.countDocuments({ role: 'user', createdAt: { $gte: thisMonth } })
+      ]),
+      Promise.all([
+        Product.countDocuments(),
+        Product.countDocuments({ inStock: true }),
+        Product.countDocuments({ isFeatured: true })
+      ])
     ]);
 
-    const thisMonthRevenue = await Order.aggregate([
-      {
-        $match: {
-          isPaid: true,
-          createdAt: { $gte: thisMonth }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          revenue: { $sum: '$totalPrice' },
-          orders: { $sum: 1 }
-        }
-      }
-    ]);
-
-    const lastMonthRevenue = await Order.aggregate([
-      {
-        $match: {
-          isPaid: true,
-          createdAt: { $gte: lastMonth, $lt: thisMonth }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          revenue: { $sum: '$totalPrice' },
-          orders: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Get customer statistics
-    const totalCustomers = await User.countDocuments({ role: 'user' });
-    const newCustomersThisMonth = await User.countDocuments({
-      role: 'user',
-      createdAt: { $gte: thisMonth }
-    });
-
-    // Get product statistics
-    const totalProducts = await Product.countDocuments();
-    const inStockProducts = await Product.countDocuments({ inStock: true });
-    const featuredProducts = await Product.countDocuments({ isFeatured: true });
-
-    // Get order statistics by status
-    const ordersByStatus = await Order.aggregate([
-      {
-        $group: {
-          _id: '$orderStatus',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    const orderStats = orderStatsAggregate[0] || {};
+    const overallStats = orderStats.overall || {};
+    const currentStats = orderStats.currentMonth || {};
+    const previousStats = orderStats.previousMonth || {};
+    const ordersByStatus = orderStats.byStatus || [];
 
     // Calculate changes
-    const currentRevenue = thisMonthRevenue[0]?.revenue || 0;
-    const previousRevenue = lastMonthRevenue[0]?.revenue || 0;
+    const currentRevenue = currentStats.revenue || 0;
+    const previousRevenue = previousStats.revenue || 0;
     const revenueChange = previousRevenue > 0
       ? ((currentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1)
       : 0;
 
-    const currentOrders = thisMonthRevenue[0]?.orders || 0;
-    const previousOrders = lastMonthRevenue[0]?.orders || 0;
+    const currentOrders = currentStats.orders || 0;
+    const previousOrders = previousStats.orders || 0;
     const ordersChange = previousOrders > 0
       ? ((currentOrders - previousOrders) / previousOrders * 100).toFixed(1)
       : 0;
@@ -94,13 +102,13 @@ exports.getDashboardStats = async (req, res) => {
       success: true,
       data: {
         revenue: {
-          total: revenueStats[0]?.totalRevenue || 0,
+          total: overallStats.totalRevenue || 0,
           thisMonth: currentRevenue,
           lastMonth: previousRevenue,
           change: revenueChange
         },
         orders: {
-          total: revenueStats[0]?.totalOrders || 0,
+          total: overallStats.totalOrders || 0,
           thisMonth: currentOrders,
           lastMonth: previousOrders,
           change: ordersChange,
@@ -130,7 +138,7 @@ exports.getDashboardStats = async (req, res) => {
 // @access  Private/Admin
 exports.getRevenueAnalytics = async (req, res) => {
   try {
-    const { period = '7days' } = req.query;
+    const period = (req.query.period || '7days').toString().toLowerCase();
     let startDate;
     const endDate = new Date();
 
@@ -192,7 +200,7 @@ exports.getRevenueAnalytics = async (req, res) => {
 // @access  Private/Admin
 exports.getTopProducts = async (req, res) => {
   try {
-    const { limit = 10 } = req.query;
+    const limit = parseInt(req.query.limit, 10) || 10;
 
     const topProducts = await Order.aggregate([
       { $match: { isPaid: true } },
@@ -229,7 +237,7 @@ exports.getTopProducts = async (req, res) => {
         }
       },
       { $sort: { totalRevenue: -1 } },
-      { $limit: parseInt(limit) }
+      { $limit: limit }
     ]);
 
     res.status(200).json({

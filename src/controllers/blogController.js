@@ -1,5 +1,14 @@
 const BlogPost = require('../models/BlogPost');
 
+const formatLeanBlog = (doc) => {
+  if (!doc) return null;
+  const { _id, __v, ...rest } = doc;
+  return {
+    ...rest,
+    id: doc.id || (_id && typeof _id.toString === 'function' ? _id.toString() : _id)
+  };
+};
+
 // @desc    Get all blog posts with pagination
 // @route   GET /api/blogs
 // @access  Public
@@ -23,21 +32,25 @@ exports.getAllBlogs = async (req, res) => {
       query.isPublished = true; // Default to published posts only
     }
 
-    const total = await BlogPost.countDocuments(query);
+    const [total, blogs] = await Promise.all([
+      BlogPost.countDocuments(query),
+      BlogPost
+        .find(query)
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(limit)
+        .lean()
+    ]);
 
-    const blogs = await BlogPost
-      .find(query)
-      .sort('-createdAt')
-      .skip(skip)
-      .limit(limit);
+    const formattedBlogs = blogs.map(formatLeanBlog);
 
     res.status(200).json({
       success: true,
-      count: blogs.length,
+      count: formattedBlogs.length,
       total,
       page,
       pages: Math.ceil(total / limit),
-      data: blogs
+      data: formattedBlogs
     });
   } catch (error) {
     res.status(500).json({
@@ -47,12 +60,13 @@ exports.getAllBlogs = async (req, res) => {
   }
 };
 
+
 // @desc    Get single blog post
 // @route   GET /api/blogs/:id
 // @access  Public
 exports.getBlog = async (req, res) => {
   try {
-    const blog = await BlogPost.findById(req.params.id);
+    const blog = await BlogPost.findById(req.params.id).lean();
 
     if (!blog) {
       return res.status(404).json({
@@ -63,7 +77,7 @@ exports.getBlog = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: blog
+      data: formatLeanBlog(blog)
     });
   } catch (error) {
     res.status(500).json({
@@ -190,12 +204,15 @@ exports.getFeaturedBlogs = async (req, res) => {
     const blogs = await BlogPost
       .find({ isPublished: true })
       .sort('-viewsCount')
-      .limit(5);
+      .limit(5)
+      .lean();
+
+    const formattedBlogs = blogs.map(formatLeanBlog);
 
     res.status(200).json({
       success: true,
-      count: blogs.length,
-      data: blogs
+      count: formattedBlogs.length,
+      data: formattedBlogs
     });
   } catch (error) {
     res.status(500).json({
@@ -213,12 +230,15 @@ exports.getRecentBlogs = async (req, res) => {
     const blogs = await BlogPost
       .find({ isPublished: true })
       .sort('-createdAt')
-      .limit(5);
+      .limit(5)
+      .lean();
+
+    const formattedBlogs = blogs.map(formatLeanBlog);
 
     res.status(200).json({
       success: true,
-      count: blogs.length,
-      data: blogs
+      count: formattedBlogs.length,
+      data: formattedBlogs
     });
   } catch (error) {
     res.status(500).json({

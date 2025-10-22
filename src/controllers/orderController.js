@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 
@@ -92,38 +93,73 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    const normalizedItems = [];
-
-    // Verify products exist, normalize payload, and ensure stock
+    const itemContexts = [];
     for (const item of items) {
-      let productId = resolveProductIdFromItem(item);
-      let product;
-      let missingIdentifier = false;
+      const productId = resolveProductIdFromItem(item);
+      const name = typeof item?.name === 'string' ? item.name.trim() : '';
 
-      if (productId) {
-        product = await Product.findById(productId);
-      } else if (item && item.name) {
-        product = await Product.findOne({ name: item.name });
-        if (product) {
-          productId = product._id;
-        } else {
-          missingIdentifier = true;
-        }
-      } else {
-        missingIdentifier = true;
-      }
-
-      if (missingIdentifier) {
+      if (!productId && !name) {
         return res.status(400).json({
           success: false,
           message: 'Order item is missing product identifier'
         });
       }
 
+      itemContexts.push({
+        original: item,
+        productId,
+        name
+      });
+    }
+
+    const uniqueProductIds = [...new Set(
+      itemContexts
+        .filter(ctx => ctx.productId)
+        .map(ctx => ctx.productId.toString())
+    )];
+
+    for (const id of uniqueProductIds) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid product identifier ${id}`
+        });
+      }
+    }
+
+    const idQuery = uniqueProductIds.length
+      ? await Product.find({
+          _id: { $in: uniqueProductIds.map(id => new mongoose.Types.ObjectId(id)) }
+        }).lean()
+      : [];
+    const productById = new Map(
+      idQuery.map(product => [product._id.toString(), product])
+    );
+
+    const namesNeedingLookup = [...new Set(
+      itemContexts
+        .filter(ctx => !ctx.productId && ctx.name)
+        .map(ctx => ctx.name)
+    )];
+
+    const nameQuery = namesNeedingLookup.length
+      ? await Product.find({ name: { $in: namesNeedingLookup } }).lean()
+      : [];
+    const productByName = new Map(
+      nameQuery.map(product => [product.name, product])
+    );
+
+    const normalizedItems = [];
+
+    for (const ctx of itemContexts) {
+      const product = ctx.productId
+        ? productById.get(ctx.productId.toString())
+        : productByName.get(ctx.name);
+
       if (!product) {
         return res.status(404).json({
           success: false,
-          message: `Product ${productId} not found`
+          message: `Product ${ctx.productId || ctx.name} not found`
         });
       }
 
@@ -134,7 +170,7 @@ exports.createOrder = async (req, res) => {
         });
       }
 
-      const parsedQuantity = parseInt(item.quantity, 10);
+      const parsedQuantity = parseInt(ctx.original.quantity, 10);
       const quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 1;
       if (quantity < 1) {
         return res.status(400).json({
@@ -143,17 +179,17 @@ exports.createOrder = async (req, res) => {
         });
       }
 
-      const parsedPrice = typeof item.price === 'number'
-        ? item.price
-        : parseFloat(item.price);
+      const parsedPrice = typeof ctx.original.price === 'number'
+        ? ctx.original.price
+        : parseFloat(ctx.original.price);
       const price = Number.isFinite(parsedPrice) ? parsedPrice : product.price;
 
       normalizedItems.push({
         product: product._id,
-        name: item.name || product.name,
+        name: ctx.original.name || product.name,
         price,
         quantity,
-        image: item.image || product.image
+        image: ctx.original.image || product.image
       });
     }
 
@@ -218,25 +254,60 @@ exports.getMyOrders = async (req, res) => {
 // @access  Private
 exports.getMyOrdersTotal = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user._id }).select('items totalPrice');
+    const userId = req.user._id.toString();
 
-    const summary = orders.reduce((acc, order) => {
-      const orderTotal = typeof order.totalPrice === 'number' ? order.totalPrice : 0;
-      const orderItems = Array.isArray(order.items) ? order.items : [];
+    const [aggregationResult] = await Order.aggregate([
+      {
+        $match: {
+          user: new mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $facet: {
+          orders: [
+            {
+              $group: {
+                _id: null,
+                totalOrders: { $sum: 1 },
+                totalSpent: { $sum: { $ifNull: ['$totalPrice', 0] } }
+              }
+            }
+          ],
+          items: [
+            { $unwind: '$items' },
+            {
+              $group: {
+                _id: null,
+                totalItems: { $sum: { $ifNull: ['$items.quantity', 0] } }
+              }
+            }
+          ]
+        }
+      },
+      {
+        $project: {
+          totalOrders: {
+            $ifNull: [{ $arrayElemAt: ['$orders.totalOrders', 0] }, 0]
+          },
+          totalSpent: {
+            $ifNull: [{ $arrayElemAt: ['$orders.totalSpent', 0] }, 0]
+          },
+          totalItems: {
+            $ifNull: [{ $arrayElemAt: ['$items.totalItems', 0] }, 0]
+          }
+        }
+      }
+    ]);
 
-      acc.totalOrders += 1;
-      acc.totalSpent += orderTotal;
-      acc.totalItems += orderItems.reduce((itemAcc, item) => {
-        const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity, 10) || 0;
-        return itemAcc + quantity;
-      }, 0);
-
-      return acc;
-    }, {
+    const summary = aggregationResult ? {
+      totalOrders: aggregationResult.totalOrders || 0,
+      totalItems: aggregationResult.totalItems || 0,
+      totalSpent: aggregationResult.totalSpent || 0
+    } : {
       totalOrders: 0,
       totalItems: 0,
       totalSpent: 0
-    });
+    };
 
     res.status(200).json({
       success: true,

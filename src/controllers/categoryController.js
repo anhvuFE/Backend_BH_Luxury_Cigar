@@ -1,16 +1,26 @@
 const Category = require('../models/Category');
 
+const formatLeanCategory = (doc) => {
+  if (!doc) return null;
+  const { _id, __v, ...rest } = doc;
+  return {
+    ...rest,
+    id: doc.id || (_id && typeof _id.toString === 'function' ? _id.toString() : _id)
+  };
+};
+
 // @desc    Get all categories
 // @route   GET /api/categories
 // @access  Public
 exports.getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.find({ isActive: true });
+    const categories = await Category.find({ isActive: true }).lean();
+    const formattedCategories = categories.map(formatLeanCategory);
 
     res.status(200).json({
       success: true,
-      count: categories.length,
-      data: categories
+      count: formattedCategories.length,
+      data: formattedCategories
     });
   } catch (error) {
     res.status(500).json({
@@ -20,12 +30,13 @@ exports.getAllCategories = async (req, res) => {
   }
 };
 
+
 // @desc    Get single category
 // @route   GET /api/categories/:id
 // @access  Public
 exports.getCategory = async (req, res) => {
   try {
-    const category = await Category.findById(req.params.id);
+    const category = await Category.findById(req.params.id).lean();
 
     if (!category) {
       return res.status(404).json({
@@ -36,7 +47,7 @@ exports.getCategory = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: category
+      data: formatLeanCategory(category)
     });
   } catch (error) {
     res.status(500).json({
@@ -51,7 +62,7 @@ exports.getCategory = async (req, res) => {
 // @access  Public
 exports.getCategoryBySlug = async (req, res) => {
   try {
-    const category = await Category.findOne({ slug: req.params.slug });
+    const category = await Category.findOne({ slug: req.params.slug }).lean();
 
     if (!category) {
       return res.status(404).json({
@@ -62,7 +73,7 @@ exports.getCategoryBySlug = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: category
+      data: formatLeanCategory(category)
     });
   } catch (error) {
     res.status(500).json({
