@@ -84,11 +84,11 @@ const validateOrder = [
     .trim()
     .notEmpty().withMessage('City is required'),
   body('shippingAddress.zipCode')
-    .trim()
-    .notEmpty().withMessage('Zip code is required'),
+    .optional({ checkFalsy: true })
+    .trim(),
   body('shippingAddress.country')
-    .trim()
-    .notEmpty().withMessage('Country is required'),
+    .optional({ checkFalsy: true })
+    .trim(),
   body('shippingAddress.phone')
     .trim()
     .notEmpty().withMessage('Phone is required'),

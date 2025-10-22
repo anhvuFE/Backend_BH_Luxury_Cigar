@@ -1,6 +1,75 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 
+const resolveProductIdFromItem = (item) => {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const visited = new Set();
+  const queue = [];
+
+  const enqueue = (value) => {
+    if (value !== null && value !== undefined) {
+      queue.push(value);
+    }
+  };
+
+  enqueue(item.product);
+  enqueue(item.productId);
+  enqueue(item.product_id);
+  enqueue(item.productID);
+  enqueue(item._id);
+  enqueue(item.id);
+
+  while (queue.length > 0) {
+    const candidate = queue.shift();
+
+    if (candidate === null || candidate === undefined) {
+      continue;
+    }
+
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim();
+      if (trimmed && trimmed.toLowerCase() !== 'undefined') {
+        return trimmed;
+      }
+      continue;
+    }
+
+    if (typeof candidate === 'number') {
+      return candidate.toString();
+    }
+
+    if (typeof candidate === 'object') {
+      if (visited.has(candidate)) {
+        continue;
+      }
+      visited.add(candidate);
+
+      if (candidate instanceof Date) {
+        continue;
+      }
+
+      if (typeof candidate.toString === 'function') {
+        const objectString = candidate.toString();
+        if (objectString && objectString !== '[object Object]' && objectString.toLowerCase() !== 'undefined') {
+          return objectString;
+        }
+      }
+
+      enqueue(candidate.product);
+      enqueue(candidate.productId);
+      enqueue(candidate.product_id);
+      enqueue(candidate.productID);
+      enqueue(candidate._id);
+      enqueue(candidate.id);
+    }
+  }
+
+  return null;
+};
+
 // @desc    Create new order
 // @route   POST /api/orders
 // @access  Private
@@ -23,32 +92,90 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    // Verify products exist and are in stock
+    const normalizedItems = [];
+
+    // Verify products exist, normalize payload, and ensure stock
     for (const item of items) {
-      const product = await Product.findById(item.product);
+      let productId = resolveProductIdFromItem(item);
+      let product;
+      let missingIdentifier = false;
+
+      if (productId) {
+        product = await Product.findById(productId);
+      } else if (item && item.name) {
+        product = await Product.findOne({ name: item.name });
+        if (product) {
+          productId = product._id;
+        } else {
+          missingIdentifier = true;
+        }
+      } else {
+        missingIdentifier = true;
+      }
+
+      if (missingIdentifier) {
+        return res.status(400).json({
+          success: false,
+          message: 'Order item is missing product identifier'
+        });
+      }
+
       if (!product) {
         return res.status(404).json({
           success: false,
-          message: `Product ${item.product} not found`
+          message: `Product ${productId} not found`
         });
       }
+
       if (!product.inStock) {
         return res.status(400).json({
           success: false,
           message: `Product ${product.name} is out of stock`
         });
       }
+
+      const parsedQuantity = parseInt(item.quantity, 10);
+      const quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 1;
+      if (quantity < 1) {
+        return res.status(400).json({
+          success: false,
+          message: `Quantity for product ${product.name} must be at least 1`
+        });
+      }
+
+      const parsedPrice = typeof item.price === 'number'
+        ? item.price
+        : parseFloat(item.price);
+      const price = Number.isFinite(parsedPrice) ? parsedPrice : product.price;
+
+      normalizedItems.push({
+        product: product._id,
+        name: item.name || product.name,
+        price,
+        quantity,
+        image: item.image || product.image
+      });
     }
+
+    const calculatedItemsPrice = normalizedItems.reduce((acc, item) => (
+      acc + (item.price * item.quantity)
+    ), 0);
+
+    const normalizedTaxPrice = typeof taxPrice === 'number' ? taxPrice : 0;
+    const normalizedShippingPrice = typeof shippingPrice === 'number' ? shippingPrice : 0;
+    const normalizedTotalPrice = typeof totalPrice === 'number'
+      ? totalPrice
+      : calculatedItemsPrice + normalizedTaxPrice + normalizedShippingPrice;
 
     const order = await Order.create({
       user: req.user._id,
-      items,
+      items: normalizedItems,
       shippingAddress,
       paymentMethod,
-      itemsPrice,
-      taxPrice,
-      shippingPrice,
-      totalPrice
+      itemsPrice: typeof itemsPrice === 'number' ? itemsPrice : calculatedItemsPrice,
+      taxPrice: normalizedTaxPrice,
+      shippingPrice: normalizedShippingPrice,
+      totalPrice: normalizedTotalPrice
     });
 
     res.status(201).json({
