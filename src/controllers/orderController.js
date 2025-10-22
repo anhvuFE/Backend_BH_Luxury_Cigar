@@ -213,6 +213,43 @@ exports.getMyOrders = async (req, res) => {
   }
 };
 
+// @desc    Get total spent and items for logged in user
+// @route   GET /api/orders/myorders/total
+// @access  Private
+exports.getMyOrdersTotal = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id }).select('items totalPrice');
+
+    const summary = orders.reduce((acc, order) => {
+      const orderTotal = typeof order.totalPrice === 'number' ? order.totalPrice : 0;
+      const orderItems = Array.isArray(order.items) ? order.items : [];
+
+      acc.totalOrders += 1;
+      acc.totalSpent += orderTotal;
+      acc.totalItems += orderItems.reduce((itemAcc, item) => {
+        const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity, 10) || 0;
+        return itemAcc + quantity;
+      }, 0);
+
+      return acc;
+    }, {
+      totalOrders: 0,
+      totalItems: 0,
+      totalSpent: 0
+    });
+
+    res.status(200).json({
+      success: true,
+      data: summary
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Get all orders (admin only)
 // @route   GET /api/orders
 // @access  Private/Admin

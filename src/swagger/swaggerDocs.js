@@ -512,6 +512,7 @@
  *                     type: string
  *                   country:
  *                     type: string
+ *                     default: Vietnam
  *                   phone:
  *                     type: string
  *               paymentMethod:
@@ -538,6 +539,32 @@
  *     responses:
  *       200:
  *         description: List of user orders
+ *
+ * /api/orders/myorders/total:
+ *   get:
+ *     summary: Get total amount spent by the logged in user
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Aggregate totals for the user's orders
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalOrders:
+ *                       type: integer
+ *                     totalItems:
+ *                       type: integer
+ *                     totalSpent:
+ *                       type: number
  *
  * /api/orders/{id}:
  *   get:

@@ -9,12 +9,14 @@ const {
   updateOrderToPaid,
   updateOrderStatus,
   cancelOrder,
-  getOrderStats
+  getOrderStats,
+  getMyOrdersTotal
 } = require('../controllers/orderController');
 
 // Protected routes (user)
 router.post('/', protect, createOrder);
 router.get('/myorders', protect, getMyOrders);
+router.get('/myorders/total', protect, getMyOrdersTotal);
 router.get('/stats', protect, admin, getOrderStats);
 router.get('/:id', protect, getOrderById);
 router.put('/:id/pay', protect, updateOrderToPaid);
