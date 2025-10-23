@@ -22,13 +22,48 @@ const seedData = async () => {
 
     // Create categories
     const categories = await Category.insertMany([
-      { name: 'Cuban Cigars', slug: 'cuban-cigars', description: 'Premium Cuban cigars', image: '/assets/images/categories/cuban-cigars.png' },
-      { name: 'Dominican Cigars', slug: 'dominican-cigars', description: 'Fine Dominican cigars', image: '/assets/images/categories/dominican-cigars.png' },
-      { name: 'Nicaraguan Cigars', slug: 'nicaraguan-cigars', description: 'Bold Nicaraguan cigars', image: '/assets/images/categories/nicaraguan-cigars.png' },
-      { name: 'Premium Collection', slug: 'premium-collection', description: 'Ultra-premium and limited edition cigars', image: '/assets/images/categories/premium-collection.png' },
-      { name: 'Signature Series', slug: 'signature-series', description: 'House signature blends and exclusive selections', image: '/assets/images/categories/signature-series.png' },
-      { name: 'Vintage Collection', slug: 'vintage-collection', description: 'Aged and vintage cigar selections', image: '/assets/images/categories/vintage-collection.png' },
-      { name: 'Accessories', slug: 'accessories', description: 'Cigar accessories and humidors', image: '/assets/images/categories/accessories.png' }
+      {
+        name: 'Cuban Cigars',
+        slug: 'cuban-cigars',
+        description: 'Premium Cuban cigars',
+        image: 'https://images.unsplash.com/photo-1543362906-acfc16c67564?auto=format&fit=crop&w=1200&q=80'
+      },
+      {
+        name: 'Dominican Cigars',
+        slug: 'dominican-cigars',
+        description: 'Fine Dominican cigars',
+        image: 'https://images.unsplash.com/photo-1512427691650-1e0c5034638f?auto=format&fit=crop&w=1200&q=80'
+      },
+      {
+        name: 'Nicaraguan Cigars',
+        slug: 'nicaraguan-cigars',
+        description: 'Bold Nicaraguan cigars',
+        image: 'https://images.unsplash.com/photo-1505843513577-22bb7d21e455?auto=format&fit=crop&w=1200&q=80'
+      },
+      {
+        name: 'Premium Collection',
+        slug: 'premium-collection',
+        description: 'Ultra-premium and limited edition cigars',
+        image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=80'
+      },
+      {
+        name: 'Signature Series',
+        slug: 'signature-series',
+        description: 'House signature blends and exclusive selections',
+        image: 'https://images.unsplash.com/photo-1503104834685-7205e8607eb9?auto=format&fit=crop&w=1200&q=80'
+      },
+      {
+        name: 'Vintage Collection',
+        slug: 'vintage-collection',
+        description: 'Aged and vintage cigar selections',
+        image: 'https://images.unsplash.com/photo-1514361892635-6e122620aebb?auto=format&fit=crop&w=1200&q=80'
+      },
+      {
+        name: 'Accessories',
+        slug: 'accessories',
+        description: 'Cigar accessories and humidors',
+        image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80'
+      }
     ]);
     console.log('Created categories');
 
