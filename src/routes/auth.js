@@ -8,6 +8,7 @@ const {
   updateDetails,
   updatePassword,
   forgotPassword,
+  resetPassword,
   logout,
   getAllUsers,
   getUserById,
@@ -20,6 +21,7 @@ const {
 router.post('/register', register);
 router.post('/login', login);
 router.post('/forgotpassword', forgotPassword);
+router.post('/resetpassword', resetPassword);
 router.post('/logout', logout);
 
 // Protected routes

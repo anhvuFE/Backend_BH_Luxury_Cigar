@@ -52,7 +52,7 @@ cp .env.example .env
 NODE_ENV=development
 PORT=3000
 MONGODB_URI=mongodb://localhost:27017/bh_luxury_cigar
-JWT_SECRET=your_jwt_secret_key_here
+ JWT_SECRET=your_jwt_secret_key_here
 ```
 
 5. Start MongoDB:
@@ -68,6 +68,10 @@ docker run -d -p 27017:27017 mongo
 ```bash
 npm run seed
 ```
+
+7. Configure email (required for password reset):
+   - Enable 2-Step Verification on your Gmail account and create an app password.
+   - Update the email settings in `.env` (see `.env.example` for reference) with the app password.
 
 ## 🚀 Running the Application
 
