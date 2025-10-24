@@ -1,5 +1,7 @@
+const crypto = require('crypto');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const { sendEmail } = require('../utils/emailService');
 
 // Generate JWT Token
 const generateToken = (user) => {
@@ -232,6 +234,13 @@ exports.updatePassword = async (req, res) => {
 // @access  Public
 exports.forgotPassword = async (req, res) => {
   try {
+    if (!req.body.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an email'
+      });
+    }
+
     const user = await User.findOne({ email: req.body.email });
 
     if (!user) {
@@ -241,17 +250,171 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    // TODO: Generate reset token
-    // TODO: Send email with reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    user.passwordResetToken = hashedToken;
+    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save({ validateBeforeSave: false });
+
+    const resetURL = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
+
+    const textContent = [
+      `Hi ${user.name || 'there'},`,
+      '',
+      'You requested a password reset for your BH Luxury Cigar account.',
+      'Please use the link below to set a new password:',
+      resetURL,
+      '',
+      'If you did not make this request, you can safely ignore this email.'
+    ].join('\n');
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đặt Lại Mật Khẩu</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #d97706; margin: 0;">BH Luxury Cigar</h1>
+        <p style="color: #666; margin: 5px 0;">Premium Cigar Experience</p>
+    </div>
+
+    <div style="background: #f9f9f9; padding: 30px; border-radius: 10px; border-left: 4px solid #d97706;">
+
+        <h2 style="color: #333; margin-top: 0;">Xin chào ${user.name || 'bạn'}!</h2>
+
+        <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetURL}"
+               style="background: #d97706;
+                      color: white;
+                      padding: 15px 30px;
+                      text-decoration: none;
+                      border-radius: 5px;
+                      display: inline-block;
+                      font-weight: bold;">
+                Đặt Lại Mật Khẩu
+            </a>
+        </div>
+
+        <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px;">
+                <strong>Lưu ý:</strong> Liên kết này sẽ hết hạn sau 10 phút.
+                Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.
+            </p>
+        </div>
+
+        <p style="font-size: 14px; color: #666;">
+            Nếu button không hoạt động, copy link này: <br>
+            <a href="${resetURL}" style="color: #d97706; word-break: break-all;">${resetURL}</a>
+        </p>
+
+    </div>
+
+    <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #999;">
+        <p>BH Luxury Cigar<br>
+        Email: support@bhluxurycigar.com | Hotline: 0975 224 557</p>
+    </div>
+
+</body>
+</html>
+    `;
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'BH Luxury Cigar Password Reset',
+        text: textContent,
+        html: htmlContent
+      });
+    } catch (mailError) {
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      if (mailError.message === 'SMTP credentials are not configured') {
+        return res.status(500).json({
+          success: false,
+          message: 'Email service is not configured. Please contact support.'
+        });
+      }
+
+      throw mailError;
+    }
 
     res.status(200).json({
       success: true,
       message: 'Email sent with password reset instructions'
     });
   } catch (error) {
+    console.error('Forgot password error:', error.message);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: 'Failed to send password reset email. Please try again later.'
+    });
+  }
+};
+
+// @desc    Reset password
+// @route   POST /api/auth/resetpassword
+// @access  Public
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, email, password } = req.body;
+
+    if (!token || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide token, email and password'
+      });
+    }
+
+    // Validate password
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    // Hash the token to compare with stored token
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with matching token and email
+    const user = await User.findOne({
+      email: email,
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Set new password
+    user.password = password;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password. Please try again later.'
     });
   }
 };
