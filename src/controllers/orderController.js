@@ -414,8 +414,8 @@ exports.updateOrderToPaid = async (req, res) => {
       });
     }
 
-    // Check if user is authorized to update this order
-    if (order.user.toString() !== req.user._id.toString()) {
+    // Check if user is authorized to update this order (owner or admin)
+    if (order.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(401).json({
         success: false,
         message: 'Not authorized to update this order'

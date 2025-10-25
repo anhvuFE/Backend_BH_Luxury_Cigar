@@ -23,6 +23,8 @@
  *     description: Order management
  *   - name: Cart
  *     description: Shopping cart management (session-based)
+ *   - name: Analytics
+ *     description: Business intelligence dashboards and exports
  */
 
 // ========== AUTH ENDPOINTS ==========
@@ -807,6 +809,120 @@
  *     responses:
  *       200:
  *         description: Cart cleared successfully
+ */
+
+// ========== ANALYTICS ENDPOINTS ==========
+/**
+ * @swagger
+ * /api/analytics/dashboard:
+ *   get:
+ *     summary: Get dashboard statistics
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Returns revenue, order, customer, and product KPIs for the current dashboard view.
+ *     responses:
+ *       200:
+ *         description: Dashboard metrics returned
+ *
+ * /api/analytics/revenue:
+ *   get:
+ *     summary: Get revenue timeline
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           enum: [7days, 30days, 6months, 1year]
+ *           default: 7days
+ *         description: Time window for aggregating revenue data
+ *     responses:
+ *       200:
+ *         description: Revenue grouped by day
+ *
+ * /api/analytics/top-products:
+ *   get:
+ *     summary: Get top selling products
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of products to return
+ *     responses:
+ *       200:
+ *         description: Top product metrics returned
+ *
+ * /api/analytics/customers:
+ *   get:
+ *     summary: Get customer analytics
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Returns growth timeline, top spenders, and customer segmentation.
+ *     responses:
+ *       200:
+ *         description: Customer analytics data returned
+ *
+ * /api/analytics/sales-by-region:
+ *   get:
+ *     summary: Get sales by region
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Regional revenue distribution returned
+ *
+ * /api/analytics/inventory:
+ *   get:
+ *     summary: Get inventory analytics
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Provides stock levels, low-stock alerts, and popular product signals.
+ *     responses:
+ *       200:
+ *         description: Inventory analytics returned
+ *
+ * /api/analytics/export:
+ *   get:
+ *     summary: Export analytics report
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [summary, revenue, customers, inventory, full]
+ *           default: summary
+ *         description: Determines which sections to include in the export
+ *       - in: query
+ *         name: format
+ *         schema:
+ *           type: string
+ *           enum: [json, csv]
+ *           default: json
+ *         description: Response format
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           enum: [7days, 30days, 6months, 1year]
+ *           default: 30days
+ *         description: Time window for the revenue timeline within the export
+ *     responses:
+ *       200:
+ *         description: Report exported successfully
  */
 
 module.exports = {};
