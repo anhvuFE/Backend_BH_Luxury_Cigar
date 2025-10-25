@@ -51,6 +51,7 @@ const orderRoutes = require('./routes/orders');
 const categoryRoutes = require('./routes/categories');
 const analyticsRoutes = require('./routes/analytics');
 const cartRoutes = require('./routes/cart');
+const userRoutes = require('./routes/users');
 
 // Routes
 app.get('/', (req, res) => {
@@ -67,6 +68,7 @@ app.get('/', (req, res) => {
       orders: '/api/orders',
       analytics: '/api/analytics',
       cart: '/api/cart',
+      users: '/api/users',
       docs: '/api-docs'
     }
   });
@@ -89,6 +91,7 @@ app.use('/api/blogs', blogRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/users', userRoutes);
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

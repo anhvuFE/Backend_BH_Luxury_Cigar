@@ -218,6 +218,48 @@ GET /api/orders/myorders
 Authorization: Bearer <token>
 ```
 
+### Customers (Admin)
+
+#### Get Customer List with Metrics
+```http
+GET /api/users?includeStats=true&page=1&limit=10&status=active
+Authorization: Bearer <admin-token>
+```
+
+#### Customer KPI Cards
+```http
+GET /api/users/stats
+Authorization: Bearer <admin-token>
+```
+
+#### Update Customer Status
+```http
+PATCH /api/users/{id}/status
+Authorization: Bearer <admin-token>
+Content-Type: application/json
+
+{
+  "isActive": false
+}
+```
+
+#### Update Customer Details
+```http
+PUT /api/users/{id}
+Authorization: Bearer <admin-token>
+Content-Type: application/json
+
+{
+  "name": "Nguyễn Văn A",
+  "phone": "0901234567",
+  "address": {
+    "street": "123 Pasteur",
+    "city": "HCMC",
+    "country": "Vietnam"
+  }
+}
+```
+
 ## 📂 Project Structure
 
 ```
@@ -234,7 +276,11 @@ Backend_BH_Luxury_Cigar/
 │   │   ├── products.js
 │   │   ├── categories.js
 │   │   ├── orders.js
-│   │   └── blogs.js
+│   │   ├── blogs.js
+│   │   ├── analytics.js
+│   │   ├── profile.js
+│   │   ├── cart.js
+│   │   └── users.js
 │   ├── middleware/      # Custom middleware
 │   │   ├── auth.js
 │   │   ├── upload.js
