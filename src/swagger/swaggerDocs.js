@@ -978,4 +978,145 @@
  *         description: Report exported successfully
  */
 
+// ========== USER MANAGEMENT ENDPOINTS ==========
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Get paginated customers with order insights (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name, email, or phone
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive]
+ *       - in: query
+ *         name: sortField
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, totalSpent, orderCount, name]
+ *           default: createdAt
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *       - in: query
+ *         name: includeStats
+ *         schema:
+ *           type: string
+ *           enum: [true, false]
+ *           default: false
+ *         description: Include dashboard summary in response
+ *     responses:
+ *       200:
+ *         description: Customers returned with pagination metadata
+ *
+ * /api/users/stats:
+ *   get:
+ *     summary: Get customer dashboard stats (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Customer KPIs returned
+ *
+ * /api/users/{id}:
+ *   get:
+ *     summary: Get customer detail with order metrics (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Customer profile returned
+ *
+ *   put:
+ *     summary: Update customer data (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin]
+ *               isActive:
+ *                 type: boolean
+ *               address:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Customer updated
+ *
+ * /api/users/{id}/status:
+ *   patch:
+ *     summary: Toggle customer activation (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [isActive]
+ *             properties:
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Customer status updated
+ */
+
 module.exports = {};
