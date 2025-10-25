@@ -44,12 +44,21 @@ const options = {
         Product: {
           type: 'object',
           properties: {
+            id: { type: 'string' },
             name: { type: 'string' },
             brand: { type: 'string' },
             price: { type: 'number' },
+            originalPrice: { type: 'number' },
+            image: { type: 'string' },
+            images: {
+              type: 'array',
+              items: { type: 'string' }
+            },
             description: { type: 'string' },
             category: { type: 'string' },
             inStock: { type: 'boolean' },
+            isNew: { type: 'boolean' },
+            isFeatured: { type: 'boolean' },
             specifications: {
               type: 'object',
               properties: {
@@ -60,7 +69,9 @@ const options = {
                 binder: { type: 'string' },
                 filler: { type: 'string' }
               }
-            }
+            },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' }
           }
         },
         Category: {

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, admin } = require('../middleware/auth');
+const { uploadProductImage } = require('../middleware/upload');
 const {
   getAllProducts,
   getProduct,
@@ -8,7 +9,8 @@ const {
   updateProduct,
   deleteProduct,
   getFeaturedProducts,
-  getNewProducts
+  getNewProducts,
+  uploadProductImageHandler
 } = require('../controllers/productController');
 
 // Public routes
@@ -20,6 +22,7 @@ router.get('/:id', getProduct);
 
 
 // Admin protected routes
+router.post('/upload', protect, admin, uploadProductImage.single('image'), uploadProductImageHandler);
 router.post('/', protect, admin, createProduct);
 router.put('/:id', protect, admin, updateProduct);
 router.delete('/:id', protect, admin, deleteProduct);

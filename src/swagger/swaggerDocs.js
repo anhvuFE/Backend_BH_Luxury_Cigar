@@ -139,6 +139,12 @@
  *     responses:
  *       200:
  *         description: List of products
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
  *
  *   post:
  *     summary: Create new product (Admin only)
@@ -188,6 +194,10 @@
  *     responses:
  *       200:
  *         description: Product details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Product'
  *
  *   put:
  *     summary: Update product (Admin only)
@@ -208,6 +218,10 @@
  *     responses:
  *       200:
  *         description: Product updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Product'
  *
  *   delete:
  *     summary: Delete product (Admin only)
@@ -223,6 +237,45 @@
  *     responses:
  *       200:
  *         description: Product deleted
+ */
+
+/**
+ * @swagger
+ * /api/products/upload:
+ *   post:
+ *     summary: Upload product image (Admin only)
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Image uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     filename:
+ *                       type: string
+ *                     path:
+ *                       type: string
+ *                     url:
+ *                       type: string
  */
 
 // ========== CATEGORY ENDPOINTS ==========

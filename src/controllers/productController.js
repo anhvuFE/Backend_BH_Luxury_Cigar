@@ -135,10 +135,11 @@ exports.getProduct = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const product = await Product.create(req.body);
+    const formattedProduct = formatLeanProduct(product.toObject());
 
     res.status(201).json({
       success: true,
-      data: product
+      data: formattedProduct
     });
   } catch (error) {
     res.status(400).json({
@@ -169,9 +170,11 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
+    const formattedProduct = formatLeanProduct(product.toObject());
+
     res.status(200).json({
       success: true,
-      data: product
+      data: formattedProduct
     });
   } catch (error) {
     res.status(400).json({
@@ -199,6 +202,36 @@ exports.deleteProduct = async (req, res) => {
       success: true,
       message: 'Product deleted successfully',
       data: {}
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Upload product image
+// @route   POST /api/products/upload
+// @access  Private/Admin
+exports.uploadProductImageHandler = (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có file nào được tải lên'
+      });
+    }
+
+    const filePath = `/uploads/products/${req.file.filename}`;
+
+    res.status(201).json({
+      success: true,
+      data: {
+        filename: req.file.filename,
+        path: filePath,
+        url: `${req.protocol}://${req.get('host')}${filePath}`
+      }
     });
   } catch (error) {
     res.status(500).json({
