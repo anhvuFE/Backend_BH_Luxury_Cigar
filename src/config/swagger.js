@@ -34,11 +34,34 @@ const options = {
         User: {
           type: 'object',
           properties: {
+            id: { type: 'string' },
             name: { type: 'string' },
             email: { type: 'string' },
-            password: { type: 'string' },
             role: { type: 'string', enum: ['user', 'admin'] },
-            phone: { type: 'string' }
+            phone: { type: 'string' },
+            avatar: {
+              type: 'string',
+              nullable: true,
+              description: 'Legacy avatar image URL kept for backward compatibility'
+            },
+            image: {
+              type: 'string',
+              nullable: true,
+              description: 'Primary profile image URL (mirrors avatar value)'
+            },
+            address: {
+              type: 'object',
+              properties: {
+                street: { type: 'string' },
+                city: { type: 'string' },
+                state: { type: 'string' },
+                zipCode: { type: 'string' },
+                country: { type: 'string' }
+              }
+            },
+            isActive: { type: 'boolean' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' }
           }
         },
         Product: {

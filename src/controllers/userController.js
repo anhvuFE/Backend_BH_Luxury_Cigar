@@ -17,9 +17,22 @@ const parseDate = (value) => {
 
 const sanitizeUserDocument = (doc = {}) => {
   if (!doc) return null;
-  const { _id, password, __v, ...rest } = doc;
+  const {
+    _id,
+    password,
+    __v,
+    avatar: docAvatar,
+    image: docImage,
+    ...rest
+  } = doc;
+
+  const normalizedAvatar = docAvatar || docImage || null;
+  const normalizedImage = docImage || docAvatar || null;
+
   return {
     ...rest,
+    avatar: normalizedAvatar,
+    image: normalizedImage,
     id: doc.id || (_id ? _id.toString() : undefined)
   };
 };
@@ -188,13 +201,7 @@ exports.getUsers = async (req, res) => {
       User.countDocuments(filters)
     ]);
 
-    const formattedUsers = users.map((user) => {
-      const { _id, ...rest } = user;
-      return {
-        ...rest,
-        id: user.id || (_id ? _id.toString() : undefined)
-      };
-    });
+    const formattedUsers = users.map((user) => sanitizeUserDocument(user));
 
     const responsePayload = {
       success: true,
