@@ -41,6 +41,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  image: {
+    type: String,
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -59,6 +63,8 @@ const userSchema = new mongoose.Schema({
   toJSON: {
     transform: function(doc, ret) {
       ret.id = ret._id;
+      ret.image = ret.image || ret.avatar || null;
+      ret.avatar = ret.avatar || ret.image || null;
       delete ret._id;
       delete ret.__v;
       delete ret.password;
@@ -79,6 +85,12 @@ userSchema.pre('save', async function(next) {
 // Update timestamp
 userSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  if (!this.image && this.avatar) {
+    this.image = this.avatar;
+  }
+  if (!this.avatar && this.image) {
+    this.avatar = this.image;
+  }
   next();
 });
 

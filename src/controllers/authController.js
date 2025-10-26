@@ -12,6 +12,29 @@ const generateToken = (user) => {
   );
 };
 
+const formatUserResponse = (userDoc = {}) => {
+  if (!userDoc) return null;
+  const doc = typeof userDoc.toObject === 'function' ? userDoc.toObject() : userDoc;
+  const {
+    _id,
+    password,
+    __v,
+    avatar: docAvatar,
+    image: docImage,
+    ...rest
+  } = doc;
+
+  const normalizedAvatar = docAvatar || docImage || null;
+  const normalizedImage = docImage || docAvatar || null;
+
+  return {
+    ...rest,
+    avatar: normalizedAvatar,
+    image: normalizedImage,
+    id: doc.id || (_id ? _id.toString() : undefined)
+  };
+};
+
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
@@ -46,7 +69,9 @@ exports.register = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      phone: user.phone
+      phone: user.phone,
+      avatar: user.avatar,
+      image: user.image || user.avatar || null
     };
 
     res.status(201).json({
@@ -115,7 +140,8 @@ exports.login = async (req, res) => {
       email: user.email,
       role: user.role,
       phone: user.phone,
-      avatar: user.avatar
+      avatar: user.avatar,
+      image: user.image || user.avatar || null
     };
 
     res.status(200).json({
@@ -140,7 +166,7 @@ exports.getMe = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: user
+      data: formatUserResponse(user)
     });
   } catch (error) {
     res.status(500).json({
@@ -178,7 +204,7 @@ exports.updateDetails = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: user
+      data: formatUserResponse(user)
     });
   } catch (error) {
     res.status(400).json({
@@ -480,7 +506,7 @@ exports.getAllUsers = async (req, res) => {
       const totalSpent = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
 
       return {
-        ...user.toObject(),
+        ...formatUserResponse(user),
         totalOrders,
         totalSpent
       };
@@ -531,7 +557,7 @@ exports.getUserById = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        ...user.toObject(),
+        ...formatUserResponse(user),
         recentOrders: orders,
         totalOrders,
         totalSpent: totalSpent[0]?.total || 0
@@ -582,7 +608,7 @@ exports.updateUser = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: user
+      data: formatUserResponse(user)
     });
   } catch (error) {
     res.status(400).json({

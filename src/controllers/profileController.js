@@ -71,17 +71,20 @@ exports.updateProfile = async (req, res) => {
       }
     }
 
-    // Handle avatar update if file is provided
+    // Handle avatar/image update if file is provided
     if (req.file) {
       // Delete old avatar if exists
-      if (user.avatar) {
-        const oldAvatarPath = path.join(process.cwd(), 'uploads', 'avatars', path.basename(user.avatar));
+      const previousAvatar = user.image || user.avatar;
+      if (previousAvatar) {
+        const oldAvatarPath = path.join(process.cwd(), 'uploads', 'avatars', path.basename(previousAvatar));
         if (fs.existsSync(oldAvatarPath)) {
           fs.unlinkSync(oldAvatarPath);
         }
       }
       // Set new avatar path
-      fieldsToUpdate.avatar = `/uploads/avatars/${req.file.filename}`;
+      const newAvatarPath = `/uploads/avatars/${req.file.filename}`;
+      fieldsToUpdate.avatar = newAvatarPath;
+      fieldsToUpdate.image = newAvatarPath;
     }
 
     // Update user with new data
@@ -121,5 +124,4 @@ exports.updateProfile = async (req, res) => {
     });
   }
 };
-
 
