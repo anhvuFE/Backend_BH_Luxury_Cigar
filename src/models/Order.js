@@ -38,6 +38,12 @@ const orderSchema = new mongoose.Schema({
       type: String,
       required: true
     },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: null
+    },
     street: {
       type: String,
       required: true

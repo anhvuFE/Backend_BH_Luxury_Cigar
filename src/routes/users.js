@@ -4,6 +4,7 @@ const { protect, admin } = require('../middleware/auth');
 const {
   getUsers,
   getUserStats,
+  getUserOrderSummary,
   getUserById,
   updateUser,
   updateUserStatus
@@ -14,6 +15,7 @@ router.use(admin);
 
 router.get('/stats', getUserStats);
 router.get('/', getUsers);
+router.get('/:id/orders/summary', getUserOrderSummary);
 router.get('/:id', getUserById);
 router.put('/:id', updateUser);
 router.patch('/:id/status', updateUserStatus);

@@ -197,6 +197,26 @@ exports.createOrder = async (req, res) => {
       acc + (item.price * item.quantity)
     ), 0);
 
+    const normalizedShippingAddress = {
+      ...(shippingAddress || {})
+    };
+
+    if (typeof normalizedShippingAddress.phone === 'string') {
+      normalizedShippingAddress.phone = normalizedShippingAddress.phone.trim();
+      if (!normalizedShippingAddress.phone) {
+        normalizedShippingAddress.phone = null;
+      }
+    }
+
+    if (typeof normalizedShippingAddress.email === 'string') {
+      const trimmedEmail = normalizedShippingAddress.email.trim().toLowerCase();
+      normalizedShippingAddress.email = trimmedEmail || null;
+    }
+
+    if (!normalizedShippingAddress.email && req.user?.email) {
+      normalizedShippingAddress.email = req.user.email.trim().toLowerCase();
+    }
+
     const normalizedTaxPrice = typeof taxPrice === 'number' ? taxPrice : 0;
     const normalizedShippingPrice = typeof shippingPrice === 'number' ? shippingPrice : 0;
     const normalizedTotalPrice = typeof totalPrice === 'number'
@@ -206,7 +226,7 @@ exports.createOrder = async (req, res) => {
     const order = await Order.create({
       user: req.user._id,
       items: normalizedItems,
-      shippingAddress,
+      shippingAddress: normalizedShippingAddress,
       paymentMethod,
       itemsPrice: typeof itemsPrice === 'number' ? itemsPrice : calculatedItemsPrice,
       taxPrice: normalizedTaxPrice,
