@@ -55,7 +55,16 @@ const buildCustomerStats = async () => {
       {
         $group: {
           _id: '$user',
-          totalSpent: { $sum: '$totalPrice' }
+          totalSpent: {
+            $sum: {
+              $convert: {
+                input: '$totalPrice',
+                to: 'double',
+                onError: 0,
+                onNull: 0
+              }
+            }
+          }
         }
       },
       {
@@ -137,44 +146,141 @@ exports.getUsers = async (req, res) => {
     const pipeline = [
       { $match: filters },
       {
+        $addFields: {
+          normalizedEmail: {
+            $let: {
+              vars: {
+                trimmed: {
+                  $trim: {
+                    input: {
+                      $ifNull: ['$email', '']
+                    }
+                  }
+                }
+              },
+              in: {
+                $cond: [
+                  { $gt: [{ $strLenCP: '$$trimmed' }, 0] },
+                  { $toLower: '$$trimmed' },
+                  null
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
         $lookup: {
           from: 'orders',
-          let: { userId: '$_id' },
+          let: {
+            userId: '$_id',
+            normalizedEmail: '$normalizedEmail'
+          },
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ['$user', '$$userId'] },
-                isPaid: true
+                $expr: {
+                  $or: [
+                    // Match by user ObjectId
+                    { $eq: ['$user', '$$userId'] },
+                    // Match by user as string
+                    { $eq: [{ $toString: '$user' }, { $toString: '$$userId' }] },
+                    // Match by user field when it's already a string
+                    {
+                      $and: [
+                        { $eq: [{ $type: '$user' }, 'string'] },
+                        { $eq: ['$user', { $toString: '$$userId' }] }
+                      ]
+                    },
+                    // Match by normalized email
+                    {
+                      $and: [
+                        { $ne: ['$$normalizedEmail', null] },
+                        {
+                          $eq: [
+                            {
+                              $let: {
+                                vars: {
+                                  trimmedEmail: {
+                                    $trim: {
+                                      input: { $ifNull: ['$shippingAddress.email', ''] }
+                                    }
+                                  }
+                                },
+                                in: {
+                                  $cond: [
+                                    { $gt: [{ $strLenCP: '$$trimmedEmail' }, 0] },
+                                    { $toLower: '$$trimmedEmail' },
+                                    null
+                                  ]
+                                }
+                              }
+                            },
+                            '$$normalizedEmail'
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
               }
             },
             {
-              $project: {
-                totalPrice: 1,
-                createdAt: 1
+              $group: {
+                _id: null,
+                orderCount: { $sum: 1 },
+                paidOrders: {
+                  $sum: {
+                    $cond: [{ $eq: ['$isPaid', true] }, 1, 0]
+                  }
+                },
+                totalSpent: {
+                  $sum: {
+                    $convert: {
+                      input: '$totalPrice',
+                      to: 'double',
+                      onError: 0,
+                      onNull: 0
+                    }
+                  }
+                },
+                paidTotalSpent: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ['$isPaid', true] },
+                      {
+                        $convert: {
+                          input: '$totalPrice',
+                          to: 'double',
+                          onError: 0,
+                          onNull: 0
+                        }
+                      },
+                      0
+                    ]
+                  }
+                },
+                lastOrderDate: { $max: '$createdAt' }
               }
             }
           ],
-          as: 'orders'
+          as: 'orderStats'
         }
       },
       {
         $addFields: {
-          orderCount: { $size: '$orders' },
-          totalSpent: {
-            $sum: {
-              $map: {
-                input: '$orders',
-                as: 'order',
-                in: '$$order.totalPrice'
-              }
-            }
-          },
-          lastOrderDate: { $max: '$orders.createdAt' }
+          orderStats: {
+            $ifNull: [{ $arrayElemAt: ['$orderStats', 0] }, {}]
+          }
         }
       },
       {
         $addFields: {
-          totalSpent: { $ifNull: ['$totalSpent', 0] },
+          orderCount: { $ifNull: ['$orderStats.orderCount', 0] },
+          paidOrders: { $ifNull: ['$orderStats.paidOrders', 0] },
+          totalSpent: { $ifNull: ['$orderStats.totalSpent', 0] },
+          paidTotalSpent: { $ifNull: ['$orderStats.paidTotalSpent', 0] },
+          lastOrderDate: { $ifNull: ['$orderStats.lastOrderDate', null] },
           averageOrderValue: {
             $cond: [
               { $gt: ['$orderCount', 0] },
@@ -188,7 +294,8 @@ exports.getUsers = async (req, res) => {
         $project: {
           password: 0,
           __v: 0,
-          orders: 0
+          orderStats: 0,
+          normalizedEmail: 0
         }
       },
       { $sort: { [sortField]: sortOrder } },
@@ -202,6 +309,107 @@ exports.getUsers = async (req, res) => {
     ]);
 
     const formattedUsers = users.map((user) => sanitizeUserDocument(user));
+
+    await Promise.all(formattedUsers.map(async (user) => {
+      if (!user || user.orderCount > 0) {
+        return;
+      }
+
+      const matchConditions = [];
+      const userObjectId = objectIdOrNull(user.id);
+
+      if (userObjectId) {
+        matchConditions.push({ user: userObjectId });
+      }
+
+      if (user?.id) {
+        matchConditions.push({ user: user.id });
+      }
+
+      if (typeof user.email === 'string' && user.email.trim()) {
+        matchConditions.push({
+          'shippingAddress.email': {
+            $regex: `^${escapeRegex(user.email.trim())}$`,
+            $options: 'i'
+          }
+        });
+      }
+
+      if (typeof user.phone === 'string' && user.phone.trim()) {
+        const digitsOnly = user.phone.replace(/\D+/g, '');
+
+        if (digitsOnly) {
+          const flexiblePattern = digitsOnly
+            .split('')
+            .map(escapeRegex)
+            .join('\\D*');
+
+          matchConditions.push({
+            'shippingAddress.phone': {
+              $regex: flexiblePattern,
+              $options: 'i'
+            }
+          });
+        }
+      }
+
+      if (matchConditions.length === 0) {
+        return;
+      }
+
+      const fallbackOrders = await Order.find({ $or: matchConditions })
+        .select('_id totalPrice isPaid createdAt')
+        .lean();
+
+      if (!fallbackOrders.length) {
+        return;
+      }
+
+      let orderCount = 0;
+      let paidOrders = 0;
+      let totalSpent = 0;
+      let paidTotalSpent = 0;
+      let lastOrderDate = null;
+
+      fallbackOrders.forEach((order) => {
+        orderCount += 1;
+
+        const totalPrice = Number(order.totalPrice) || 0;
+        totalSpent += totalPrice;
+
+        if (order.isPaid) {
+          paidOrders += 1;
+          paidTotalSpent += totalPrice;
+        }
+
+        const createdAt = order.createdAt ? new Date(order.createdAt) : null;
+        if (createdAt && (!lastOrderDate || createdAt > lastOrderDate)) {
+          lastOrderDate = createdAt;
+        }
+      });
+
+      if (userObjectId) {
+        const orderIdsNeedingUpdate = fallbackOrders
+          .filter((order) => order?._id)
+          .map((order) => order._id);
+
+        if (orderIdsNeedingUpdate.length > 0) {
+          await Order.updateMany(
+            { _id: { $in: orderIdsNeedingUpdate } },
+            { $set: { user: userObjectId } }
+          );
+        }
+      }
+
+      user.orderCount = orderCount;
+      user.paidOrders = paidOrders;
+      user.totalSpent = Number(totalSpent);
+      user.paidTotalSpent = Number(paidTotalSpent);
+      user.lastOrderDate = lastOrderDate || null;
+      user.averageOrderValue = orderCount
+        ? Number(totalSpent / orderCount)
+        : 0;
+    }));
 
     const responsePayload = {
       success: true,
@@ -246,6 +454,189 @@ exports.getUserStats = async (req, res) => {
   }
 };
 
+// @desc    Get order summary for a user
+// @route   GET /api/users/:id/orders/summary
+// @access  Private/Admin
+exports.getUserOrderSummary = async (req, res) => {
+  try {
+    const userId = objectIdOrNull(req.params.id);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user id'
+      });
+    }
+
+    const user = await User.findById(userId).select('email phone').lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userIdString = userId.toString();
+    const normalizedEmail = typeof user.email === 'string'
+      ? user.email.trim().toLowerCase() || null
+      : null;
+    let normalizedPhone = null;
+    if (typeof user.phone === 'string') {
+      const digitsOnly = user.phone.replace(/\D+/g, '');
+      normalizedPhone = digitsOnly ? digitsOnly : null;
+    }
+
+    const matchExpressions = [
+      {
+        $eq: [
+          {
+            $cond: [
+              { $eq: [{ $type: '$user' }, 'objectId'] },
+              { $toString: '$user' },
+              { $ifNull: ['$user', null] }
+            ]
+          },
+          userIdString
+        ]
+      }
+    ];
+
+    if (normalizedEmail) {
+      matchExpressions.push({
+        $eq: [
+          {
+            $let: {
+              vars: {
+                trimmedEmail: {
+                  $trim: {
+                    input: { $ifNull: ['$shippingAddress.email', ''] }
+                  }
+                }
+              },
+              in: {
+                $cond: [
+                  { $gt: [{ $strLenCP: '$$trimmedEmail' }, 0] },
+                  { $toLower: '$$trimmedEmail' },
+                  null
+                ]
+              }
+            }
+          },
+          normalizedEmail
+        ]
+      });
+    }
+
+    // Phone matching will be handled in fallback logic instead of aggregation
+    // to avoid MongoDB version compatibility issues with $regexReplace
+
+    const [aggregation] = await Order.aggregate([
+      {
+        $match: {
+          $expr: {
+            $or: matchExpressions
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          orderCount: { $sum: 1 },
+          totalSpent: {
+            $sum: {
+              $convert: {
+                input: '$totalPrice',
+                to: 'double',
+                onError: 0,
+                onNull: 0
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    let summaryData = {
+      orderCount: aggregation?.orderCount || 0,
+      totalSpent: Number(aggregation?.totalSpent || 0)
+    };
+
+    if (summaryData.orderCount === 0) {
+      const fallbackConditions = [];
+
+      fallbackConditions.push({ user: userId });
+      fallbackConditions.push({ user: userIdString });
+
+      if (typeof user.email === 'string' && user.email.trim()) {
+        fallbackConditions.push({
+          'shippingAddress.email': {
+            $regex: `^${escapeRegex(user.email.trim())}$`,
+            $options: 'i'
+          }
+        });
+      }
+
+      if (typeof user.phone === 'string' && user.phone.trim()) {
+        const digitsOnlyPhone = user.phone.replace(/\D+/g, '');
+        if (digitsOnlyPhone) {
+          const phonePattern = digitsOnlyPhone
+            .split('')
+            .map(escapeRegex)
+            .join('\\D*');
+
+          fallbackConditions.push({
+            'shippingAddress.phone': {
+              $regex: phonePattern,
+              $options: 'i'
+            }
+          });
+        }
+      }
+
+      const fallbackOrders = fallbackConditions.length
+        ? await Order.find({ $or: fallbackConditions }).select('_id totalPrice isPaid').lean()
+        : [];
+
+      if (fallbackOrders.length > 0) {
+        let fallbackOrderCount = 0;
+        let fallbackTotalSpent = 0;
+
+        fallbackOrders.forEach((order) => {
+          fallbackOrderCount += 1;
+          fallbackTotalSpent += Number(order.totalPrice) || 0;
+        });
+
+        summaryData = {
+          orderCount: fallbackOrderCount,
+          totalSpent: fallbackTotalSpent
+        };
+
+        const orderIdsToUpdate = fallbackOrders
+          .filter((order) => order?._id)
+          .map((order) => order._id);
+
+        if (orderIdsToUpdate.length > 0) {
+          await Order.updateMany(
+            { _id: { $in: orderIdsToUpdate } },
+            { $set: { user: userId } }
+          );
+        }
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: summaryData
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Get detailed customer profile with order insights
 // @route   GET /api/users/:id
 // @access  Private/Admin
@@ -269,16 +660,131 @@ exports.getUserById = async (req, res) => {
       });
     }
 
+    const userIdString = userId.toString();
+    const normalizedEmail = typeof user.email === 'string'
+      ? user.email.trim().toLowerCase() || null
+      : null;
+    let normalizedPhone = null;
+    if (typeof user.phone === 'string') {
+      const digitsOnly = user.phone.replace(/\D+/g, '');
+      normalizedPhone = digitsOnly ? digitsOnly : null;
+    }
+
+    const orderMatchOrConditions = [
+      // Match by user ObjectId or string representation
+      {
+        $eq: [
+          {
+            $cond: [
+              { $eq: [{ $type: '$user' }, 'objectId'] },
+              { $toString: '$user' },
+              { $ifNull: ['$user', null] }
+            ]
+          },
+          userIdString
+        ]
+      }
+    ];
+
+    if (normalizedEmail) {
+      orderMatchOrConditions.push({
+        $eq: [
+          {
+            $let: {
+              vars: {
+                trimmedEmail: {
+                  $trim: {
+                    input: { $ifNull: ['$shippingAddress.email', ''] }
+                  }
+                }
+              },
+              in: {
+                $cond: [
+                  { $gt: [{ $strLenCP: '$$trimmedEmail' }, 0] },
+                  { $toLower: '$$trimmedEmail' },
+                  null
+                ]
+              }
+            }
+          },
+          normalizedEmail
+        ]
+      });
+    }
+
+    if (normalizedPhone) {
+      orderMatchOrConditions.push({
+        $eq: [
+          {
+            $let: {
+              vars: {
+                digits: {
+                  $regexReplace: {
+                    input: { $ifNull: ['$shippingAddress.phone', ''] },
+                    regex: '[^0-9]',
+                    replacement: ''
+                  }
+                }
+              },
+              in: {
+                $cond: [
+                  { $gt: [{ $strLenCP: '$$digits' }, 0] },
+                  '$$digits',
+                  null
+                ]
+              }
+            }
+          },
+          normalizedPhone
+        ]
+      });
+    }
+
+    const orderMatchExpression = {
+      $expr: {
+        $or: orderMatchOrConditions
+      }
+    };
+
     const [summary] = await Order.aggregate([
-      { $match: { user: userId } },
+      { $match: orderMatchExpression },
       {
         $group: {
           _id: '$user',
           orderCount: { $sum: 1 },
-          paidOrders: { $sum: { $cond: ['$isPaid', 1, 0] } },
+          paidOrders: {
+            $sum: {
+              $cond: [
+                { $eq: ['$isPaid', true] },
+                1,
+                0
+              ]
+            }
+          },
           totalSpent: {
             $sum: {
-              $cond: ['$isPaid', '$totalPrice', 0]
+              $convert: {
+                input: '$totalPrice',
+                to: 'double',
+                onError: 0,
+                onNull: 0
+              }
+            }
+          },
+          paidTotalSpent: {
+            $sum: {
+              $cond: [
+                { $eq: ['$isPaid', true] },
+                {
+                  $convert: {
+                    input: '$totalPrice',
+                    to: 'double',
+                    onError: 0,
+                    onNull: 0
+                  }
+                },
+                0
+              ]
             }
           },
           lastOrderDate: { $max: '$createdAt' }
@@ -287,7 +793,7 @@ exports.getUserById = async (req, res) => {
     ]);
 
     const statusBreakdown = await Order.aggregate([
-      { $match: { user: userId } },
+      { $match: orderMatchExpression },
       {
         $group: {
           _id: '$orderStatus',
@@ -296,36 +802,151 @@ exports.getUserById = async (req, res) => {
       }
     ]);
 
-    const recentOrders = await Order.find({ user: userId })
+    const recentOrders = await Order.find(orderMatchExpression)
       .sort({ createdAt: -1 })
       .limit(5)
       .select('orderNumber totalPrice orderStatus createdAt isPaid')
       .lean();
+
+    let metricsSummary = {
+      orderCount: summary?.orderCount || 0,
+      paidOrders: summary?.paidOrders || 0,
+      totalSpent: Number(summary?.totalSpent || 0),
+      paidTotalSpent: Number(summary?.paidTotalSpent || 0),
+      lastOrderDate: summary?.lastOrderDate || null
+    };
+
+    let statusBreakdownFormatted = statusBreakdown.map((entry) => ({
+      status: entry._id || 'unknown',
+      count: entry.count
+    }));
+
+    let recentOrdersList = recentOrders.map((order) => {
+      const { _id, ...rest } = order;
+      return {
+        ...rest,
+        id: _id ? _id.toString() : undefined
+      };
+    });
+
+    if (metricsSummary.orderCount === 0) {
+      const fallbackConditions = [
+        { user: userId },
+        { user: userIdString }
+      ];
+
+      if (typeof user.email === 'string' && user.email.trim()) {
+        fallbackConditions.push({
+          'shippingAddress.email': {
+            $regex: `^${escapeRegex(user.email.trim())}$`,
+            $options: 'i'
+          }
+        });
+      }
+
+      if (typeof user.phone === 'string' && user.phone.trim()) {
+        const digitsOnlyPhone = user.phone.replace(/\D+/g, '');
+        if (digitsOnlyPhone) {
+          const phonePattern = digitsOnlyPhone
+            .split('')
+            .map(escapeRegex)
+            .join('\\D*');
+
+          fallbackConditions.push({
+            'shippingAddress.phone': {
+              $regex: phonePattern,
+              $options: 'i'
+            }
+          });
+        }
+      }
+
+      const fallbackOrders = await Order.find({ $or: fallbackConditions })
+        .select('_id orderNumber totalPrice orderStatus createdAt isPaid')
+        .lean();
+
+      if (fallbackOrders.length > 0) {
+        let fallbackOrderCount = 0;
+        let fallbackPaidOrders = 0;
+        let fallbackTotalSpent = 0;
+        let fallbackPaidTotalSpent = 0;
+        let fallbackLastOrderDate = null;
+        const fallbackStatus = new Map();
+
+        fallbackOrders.forEach((order) => {
+          fallbackOrderCount += 1;
+
+          const totalPrice = Number(order.totalPrice) || 0;
+          fallbackTotalSpent += totalPrice;
+
+          if (order.isPaid) {
+            fallbackPaidOrders += 1;
+            fallbackPaidTotalSpent += totalPrice;
+          }
+
+          const createdAt = order.createdAt ? new Date(order.createdAt) : null;
+          if (createdAt && (!fallbackLastOrderDate || createdAt > fallbackLastOrderDate)) {
+            fallbackLastOrderDate = createdAt;
+          }
+
+          const statusKey = order.orderStatus || 'unknown';
+          fallbackStatus.set(statusKey, (fallbackStatus.get(statusKey) || 0) + 1);
+        });
+
+        metricsSummary = {
+          orderCount: fallbackOrderCount,
+          paidOrders: fallbackPaidOrders,
+          totalSpent: Number(fallbackTotalSpent || 0),
+          paidTotalSpent: Number(fallbackPaidTotalSpent || 0),
+          lastOrderDate: fallbackLastOrderDate || null
+        };
+
+        statusBreakdownFormatted = Array.from(fallbackStatus.entries()).map(([status, count]) => ({
+          status,
+          count
+        }));
+
+        recentOrdersList = fallbackOrders
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 5)
+          .map((order) => ({
+            orderNumber: order.orderNumber,
+            totalPrice: order.totalPrice,
+            orderStatus: order.orderStatus,
+            createdAt: order.createdAt,
+            isPaid: order.isPaid,
+            id: order._id ? order._id.toString() : undefined
+          }));
+
+        const ordersToUpdate = fallbackOrders
+          .filter((order) => order?._id)
+          .map((order) => order._id);
+
+        if (ordersToUpdate.length > 0) {
+          await Order.updateMany(
+            { _id: { $in: ordersToUpdate } },
+            { $set: { user: userId } }
+          );
+        }
+      }
+    }
 
     res.status(200).json({
       success: true,
       data: {
         user: sanitizeUserDocument(user),
         metrics: {
-          orderCount: summary?.orderCount || 0,
-          paidOrders: summary?.paidOrders || 0,
-          totalSpent: Number(summary?.totalSpent || 0),
-          lastOrderDate: summary?.lastOrderDate || null,
-          averageOrderValue: summary?.orderCount
-            ? Number((summary.totalSpent || 0) / summary.orderCount)
+          orderCount: metricsSummary.orderCount,
+          paidOrders: metricsSummary.paidOrders,
+          totalSpent: Number(metricsSummary.totalSpent || 0),
+          paidTotalSpent: Number(metricsSummary.paidTotalSpent || 0),
+          lastOrderDate: metricsSummary.lastOrderDate || null,
+          averageOrderValue: metricsSummary.orderCount
+            ? Number(metricsSummary.totalSpent / metricsSummary.orderCount)
             : 0,
-          statusBreakdown: statusBreakdown.map((entry) => ({
-            status: entry._id || 'unknown',
-            count: entry.count
-          }))
+          statusBreakdown: statusBreakdownFormatted
         },
-        recentOrders: recentOrders.map((order) => {
-          const { _id, ...rest } = order;
-          return {
-            ...rest,
-            id: _id ? _id.toString() : undefined
-          };
-        })
+        recentOrders: recentOrdersList
       }
     });
   } catch (error) {

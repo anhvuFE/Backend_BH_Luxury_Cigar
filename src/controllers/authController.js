@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { sendEmail } = require('../utils/emailService');
+const { getUserOrderMetrics } = require('../utils/orderMetrics');
 
 // Generate JWT Token
 const generateToken = (user) => {
@@ -162,11 +163,24 @@ exports.login = async (req, res) => {
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const [user, orderMetrics] = await Promise.all([
+      User.findById(req.user._id),
+      getUserOrderMetrics(req.user._id)
+    ]);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
 
     res.status(200).json({
       success: true,
-      data: formatUserResponse(user)
+      data: {
+        ...formatUserResponse(user),
+        orderMetrics
+      }
     });
   } catch (error) {
     res.status(500).json({

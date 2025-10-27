@@ -1,13 +1,17 @@
 const User = require('../models/User');
 const fs = require('fs');
 const path = require('path');
+const { getUserOrderMetrics } = require('../utils/orderMetrics');
 
 // @desc    Get user profile
 // @route   GET /api/profile
 // @access  Private
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const [user, orderMetrics] = await Promise.all([
+      User.findById(req.user._id),
+      getUserOrderMetrics(req.user._id)
+    ]);
 
     if (!user) {
       return res.status(404).json({
@@ -16,9 +20,16 @@ exports.getProfile = async (req, res) => {
       });
     }
 
+    const serializedUser = typeof user.toJSON === 'function'
+      ? user.toJSON()
+      : user;
+
     res.status(200).json({
       success: true,
-      data: user
+      data: {
+        ...serializedUser,
+        orderMetrics
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -97,9 +108,18 @@ exports.updateProfile = async (req, res) => {
       }
     );
 
+    const orderMetrics = await getUserOrderMetrics(req.user._id);
+
+    const serializedUser = typeof updatedUser.toJSON === 'function'
+      ? updatedUser.toJSON()
+      : updatedUser;
+
     res.status(200).json({
       success: true,
-      data: updatedUser,
+      data: {
+        ...serializedUser,
+        orderMetrics
+      },
       message: 'Profile updated successfully'
     });
   } catch (error) {
@@ -124,4 +144,3 @@ exports.updateProfile = async (req, res) => {
     });
   }
 };
-

@@ -101,6 +101,49 @@ describe('User management endpoints', () => {
     expect(Number(customer.totalSpent)).toBeGreaterThan(0);
   });
 
+  it('should include unpaid orders in totals', async () => {
+    const unpaidOrderValue = 320000;
+
+    await Order.create({
+      user: customers[1]._id,
+      items: [
+        {
+          product: new mongoose.Types.ObjectId(),
+          name: 'Pending Product',
+          price: unpaidOrderValue,
+          quantity: 1
+        }
+      ],
+      shippingAddress: {
+        name: 'Customer Two',
+        street: '456 Street',
+        city: 'Da Nang',
+        state: '',
+        zipCode: '500000',
+        country: 'Vietnam',
+        phone: '0900000002'
+      },
+      paymentMethod: 'credit_card',
+      paymentStatus: 'pending',
+      itemsPrice: unpaidOrderValue,
+      taxPrice: 0,
+      shippingPrice: 0,
+      totalPrice: unpaidOrderValue
+    });
+
+    const res = await request(app)
+      .get('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    const customer = res.body.data.find((item) => item.email === 'customer2@example.com');
+    expect(customer).toBeDefined();
+    expect(customer.orderCount).toBe(1);
+    expect(customer.paidOrders).toBe(0);
+    expect(customer.totalSpent).toBe(unpaidOrderValue);
+    expect(customer.paidTotalSpent).toBe(0);
+  });
+
   it('should return detailed customer profile with metrics', async () => {
     const targetId = customers[0]._id.toString();
     const res = await request(app)
@@ -112,6 +155,18 @@ describe('User management endpoints', () => {
     expect(res.body.data.metrics.orderCount).toBe(1);
     expect(Array.isArray(res.body.data.recentOrders)).toBe(true);
     expect(res.body.data.recentOrders.length).toBeGreaterThan(0);
+  });
+
+  it('should return order summary for a specific user', async () => {
+    const targetId = customers[0]._id.toString();
+    const res = await request(app)
+      .get(`/api/users/${targetId}/orders/summary`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.orderCount).toBe(1);
+    expect(res.body.data.totalSpent).toBe(450000);
   });
 
   it('should update user status', async () => {

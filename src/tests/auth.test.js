@@ -1,6 +1,8 @@
 const request = require('supertest');
+const mongoose = require('mongoose');
 const app = require('../server');
 const User = require('../models/User');
+const Order = require('../models/Order');
 
 describe('Authentication Endpoints', () => {
   let testUser;
@@ -18,8 +20,14 @@ describe('Authentication Endpoints', () => {
   });
 
   afterEach(async () => {
-    // Clean up after tests
-    await User.deleteMany({ email: 'test@example.com' });
+    const existingUser = await User.findOne({ email: testUser.email });
+
+    if (existingUser) {
+      await Order.deleteMany({ user: existingUser._id });
+      await existingUser.deleteOne();
+    } else {
+      await User.deleteMany({ email: testUser.email });
+    }
   });
 
   describe('POST /api/auth/register', () => {
@@ -129,6 +137,13 @@ describe('Authentication Endpoints', () => {
 
       expect(res.body).toHaveProperty('success', true);
       expect(res.body.data).toHaveProperty('email', testUser.email);
+      expect(res.body.data).toHaveProperty('orderMetrics');
+      expect(res.body.data.orderMetrics).toEqual(expect.objectContaining({
+        orderCount: 0,
+        paidOrders: 0,
+        totalSpent: 0,
+        paidTotalSpent: 0
+      }));
     });
 
     it('should not get user without token', async () => {
@@ -146,6 +161,50 @@ describe('Authentication Endpoints', () => {
         .expect(401);
 
       expect(res.body.message).toContain('Not authorized');
+    });
+
+    it('should include order count and total spent from orders API', async () => {
+      const userRecord = await User.findOne({ email: testUser.email });
+
+      await Order.create({
+        user: userRecord._id,
+        items: [
+          {
+            product: new mongoose.Types.ObjectId(),
+            name: 'Sample Product',
+            price: 200000,
+            quantity: 2
+          }
+        ],
+        shippingAddress: {
+          name: 'Sample User',
+          street: '123 Main St',
+          city: 'Ho Chi Minh',
+          state: '',
+          zipCode: '70000',
+          country: 'Vietnam',
+          phone: '0900000000'
+        },
+        paymentMethod: 'credit_card',
+        paymentStatus: 'completed',
+        itemsPrice: 400000,
+        taxPrice: 0,
+        shippingPrice: 0,
+        totalPrice: 400000
+      });
+
+      const res = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(res.body.data.orderMetrics).toEqual(expect.objectContaining({
+        orderCount: 1,
+        paidOrders: 0,
+        totalSpent: 400000,
+        paidTotalSpent: 0
+      }));
+      expect(res.body.data.orderMetrics.lastOrderDate).toBeTruthy();
     });
   });
 

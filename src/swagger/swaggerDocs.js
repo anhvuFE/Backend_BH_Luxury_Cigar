@@ -1041,6 +1041,22 @@
  *       200:
  *         description: Customer KPIs returned
  *
+ * /api/users/{id}/orders/summary:
+ *   get:
+ *     summary: Get order summary for a customer (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Order summary returned
+ *
  * /api/users/{id}:
  *   get:
  *     summary: Get customer detail with order metrics (Admin only)
