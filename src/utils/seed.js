@@ -6,6 +6,7 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const BlogPost = require('../models/BlogPost');
+const Order = require('../models/Order');
 
 const categoryImages = {
   cuban: 'https://images.pexels.com/photos/415473/pexels-photo-415473.jpeg?auto=compress&cs=tinysrgb&w=1200',
@@ -200,6 +201,7 @@ const seedData = async () => {
     await Product.deleteMany({});
     await Category.deleteMany({});
     await BlogPost.deleteMany({});
+    await Order.deleteMany({});
     console.log('Cleared existing data');
 
     // Create categories
@@ -838,6 +840,108 @@ const seedData = async () => {
       }
     ]);
     console.log('Created products');
+
+    const createOrderItem = (product, quantity) => ({
+      product: product._id,
+      name: product.name,
+      price: product.price,
+      quantity,
+      image: product.image
+    });
+
+    const orderBaseAddress = {
+      name: 'Xuan Anh',
+      email: 'xanh@gmail.com',
+      street: '123 Nguyen Trai',
+      city: 'Hanoi',
+      state: 'HN',
+      zipCode: '100000',
+      country: 'Vietnam',
+      phone: '098-765-4321'
+    };
+
+    const rawOrders = [
+      {
+        user: users[1]._id,
+        items: [
+          createOrderItem(products[0], 6),
+          createOrderItem(products[1], 2)
+        ],
+        shippingAddress: orderBaseAddress,
+        paymentMethod: 'credit_card',
+        paymentStatus: 'completed',
+        orderStatus: 'delivered',
+        isPaid: true,
+        isDelivered: true,
+        paidAt: new Date(),
+        deliveredAt: new Date()
+      },
+      {
+        user: users[1]._id,
+        items: [
+          createOrderItem(products[0], 4),
+          createOrderItem(products[5], 1)
+        ],
+        shippingAddress: orderBaseAddress,
+        paymentMethod: 'credit_card',
+        paymentStatus: 'completed',
+        orderStatus: 'delivered',
+        isPaid: true,
+        isDelivered: true,
+        paidAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        deliveredAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+      },
+      {
+        user: users[1]._id,
+        items: [
+          createOrderItem(products[3], 3),
+          createOrderItem(products[4], 1)
+        ],
+        shippingAddress: orderBaseAddress,
+        paymentMethod: 'credit_card',
+        paymentStatus: 'completed',
+        orderStatus: 'shipped',
+        isPaid: true,
+        isDelivered: false,
+        paidAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+      },
+      {
+        user: users[1]._id,
+        items: [
+          createOrderItem(products[0], 2),
+          createOrderItem(products[10], 1),
+          createOrderItem(products[12], 1)
+        ],
+        shippingAddress: {
+          ...orderBaseAddress,
+          street: '456 Le Loi',
+          city: 'Ho Chi Minh City',
+          state: 'HCM'
+        },
+        paymentMethod: 'paypal',
+        paymentStatus: 'completed',
+        orderStatus: 'processing',
+        isPaid: true,
+        isDelivered: false,
+        paidAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      }
+    ].map((order, index) => {
+      const itemsPrice = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const createdAt = new Date(Date.now() - (index + 1) * 24 * 60 * 60 * 1000);
+      return {
+        ...order,
+        orderNumber: `ORD-SEED-${index + 1}`,
+        itemsPrice,
+        taxPrice: 0,
+        shippingPrice: 0,
+        totalPrice: itemsPrice,
+        createdAt,
+        updatedAt: createdAt
+      };
+    });
+
+    await Order.insertMany(rawOrders);
+    console.log('Created sample orders');
 
     // Create blog posts
     const blogPosts = await BlogPost.insertMany([

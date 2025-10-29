@@ -16,7 +16,7 @@ router.use(protect, admin);
 
 // Dashboard and reports
 router.get('/dashboard', getDashboardStats);
-router.get('/revenue', getRevenueAnalytics);
+router.get('/sales', getRevenueAnalytics); // Updated to match frontend endpoint
 router.get('/top-products', getTopProducts);
 router.get('/customers', getCustomerAnalytics);
 router.get('/sales-by-region', getSalesByRegion);
