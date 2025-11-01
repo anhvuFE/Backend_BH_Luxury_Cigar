@@ -64,6 +64,14 @@ exports.register = async (req, res) => {
     // Generate token
     const token = generateToken(user);
 
+    // Persist auth state in session for clients using cookies
+    if (req.session) {
+      req.session.user = {
+        id: user._id.toString(),
+        role: user.role
+      };
+    }
+
     // Create user object with proper id format
     const userResponse = {
       id: user._id,
@@ -133,6 +141,14 @@ exports.login = async (req, res) => {
 
     // Generate token
     const token = generateToken(user);
+
+    // Persist auth state in session for clients using cookies
+    if (req.session) {
+      req.session.user = {
+        id: user._id.toString(),
+        role: user.role
+      };
+    }
 
     // Create user object with proper id format
     const userResponse = {
@@ -463,10 +479,25 @@ exports.resetPassword = async (req, res) => {
 // @route   POST /api/auth/logout
 // @access  Private
 exports.logout = async (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Logged out successfully'
-  });
+  try {
+    if (req.session) {
+      if (req.session.user) {
+        delete req.session.user;
+      }
+      // Explicitly save the session so other data (like cart contents) persists
+      req.session.save(() => {});
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to log out. Please try again.'
+    });
+  }
 };
 
 // @desc    Get all users (admin only) with filtering and pagination

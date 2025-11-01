@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 const session = require('express-session');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
@@ -52,6 +53,7 @@ const categoryRoutes = require('./routes/categories');
 const analyticsRoutes = require('./routes/analytics');
 const cartRoutes = require('./routes/cart');
 const userRoutes = require('./routes/users');
+const uploadRoutes = require('./routes/upload');
 
 // Routes
 app.get('/', (req, res) => {
@@ -92,6 +94,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

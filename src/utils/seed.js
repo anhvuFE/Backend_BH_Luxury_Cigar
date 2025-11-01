@@ -944,7 +944,10 @@ const seedData = async () => {
     console.log('Created sample orders');
 
     // Create blog posts
-    const blogPosts = await BlogPost.insertMany([
+    const blogBaseTimestamp = Date.now();
+    const daysAgo = (days) => new Date(blogBaseTimestamp - days * 24 * 60 * 60 * 1000);
+
+    await BlogPost.insertMany([
       {
         title: 'The Art of Cigar Aging',
         excerpt: 'Discover how proper aging transforms a good cigar into an exceptional smoking experience.',
@@ -953,7 +956,11 @@ const seedData = async () => {
         author: 'John Martinez',
         category: 'Education',
         slug: 'art-of-cigar-aging',
-        isPublished: true
+        isPublished: true,
+        publishDate: daysAgo(60),
+        views: 482,
+        createdAt: daysAgo(60),
+        updatedAt: daysAgo(60)
       },
       {
         title: 'Cuban vs Dominican Cigars: A Comparison',
@@ -963,7 +970,11 @@ const seedData = async () => {
         author: 'Sarah Chen',
         category: 'Reviews',
         slug: 'cuban-vs-dominican-cigars',
-        isPublished: true
+        isPublished: true,
+        publishDate: daysAgo(45),
+        views: 377,
+        createdAt: daysAgo(45),
+        updatedAt: daysAgo(45)
       },
       {
         title: 'How to Properly Cut and Light Your Cigar',
@@ -973,7 +984,81 @@ const seedData = async () => {
         author: 'Michael Brown',
         category: 'How-To',
         slug: 'how-to-cut-light-cigar',
-        isPublished: true
+        isPublished: true,
+        publishDate: daysAgo(35),
+        views: 295,
+        createdAt: daysAgo(35),
+        updatedAt: daysAgo(35)
+      },
+      {
+        title: 'Pairing Cigars with Whiskey for Beginners',
+        excerpt: 'Learn how to match cigar strengths and whiskey profiles for memorable tasting sessions.',
+        content: 'Pairing cigars with whiskey for beginners combines flavor balance, aroma, and finish. Start with medium bodied cigars alongside approachable single malt expressions to understand how sweetness, spice, and smoke interact. As your palate matures, experiment with bolder cigars and cask strength pours to create layered pairings that highlight the best qualities of both.',
+        image: '/images/blog/cigar-whiskey.jpg',
+        author: 'Laura Nguyen',
+        category: 'Pairings',
+        slug: 'pairing-cigars-with-whiskey',
+        isPublished: true,
+        publishDate: daysAgo(25),
+        views: 310,
+        createdAt: daysAgo(25),
+        updatedAt: daysAgo(25)
+      },
+      {
+        title: 'Behind the Blend Interview with Master Blender Carlos Ruiz',
+        excerpt: 'An in depth conversation about crafting small batch luxury cigars.',
+        content: 'Master blender Carlos Ruiz shares how he sources aged tobaccos, orchestrates fermentation, and fine tunes the final blend for flagship releases. From selecting ligero leaves for strength to resting finished cigars for consistency, the interview offers a behind the scenes look at the artistry that defines celebrated boutique labels.',
+        image: '/images/blog/master-blender-interview.jpg',
+        author: 'Emily Carter',
+        category: 'Interviews',
+        slug: 'behind-the-blend-carlos-ruiz',
+        isPublished: true,
+        publishDate: daysAgo(20),
+        views: 198,
+        createdAt: daysAgo(20),
+        updatedAt: daysAgo(20)
+      },
+      {
+        title: 'Cigar Etiquette for Luxury Events',
+        excerpt: 'Polish your cigar etiquette before the next lounge opening or private pairing dinner.',
+        content: 'Luxury cigar events demand attention to etiquette from cutting technique to ash discipline. Engage hosts and fellow guests respectfully by handling cigars with care, managing smoke direction, and pacing each draw. Understanding unspoken rules creates a relaxed environment that lets everyone focus on the craftsmanship of the cigars being celebrated.',
+        image: '/images/blog/cigar-etiquette.jpg',
+        author: 'James Turner',
+        category: 'Lifestyle',
+        slug: 'cigar-etiquette-luxury-events',
+        isPublished: true,
+        publishDate: daysAgo(15),
+        views: 156,
+        createdAt: daysAgo(15),
+        updatedAt: daysAgo(15)
+      },
+      {
+        title: 'Building Your First Home Humidor',
+        excerpt: 'Step by step guidance to create stable storage for a growing premium cigar collection.',
+        content: 'A dependable home humidor protects cigars from humidity swings that can dull flavor or cause cracking. Begin by seasoning the interior Spanish cedar, then select humidification elements that hold steady around 70 percent. Rotate cigars monthly and track temperature to keep every stick ready for impromptu gatherings or personal relaxation.',
+        image: '/images/blog/home-humidor.jpg',
+        author: 'Sofia Ramirez',
+        category: 'How-To',
+        slug: 'building-your-first-home-humidor',
+        isPublished: true,
+        publishDate: daysAgo(10),
+        views: 221,
+        createdAt: daysAgo(10),
+        updatedAt: daysAgo(10)
+      },
+      {
+        title: 'Limited Edition Cigars to Watch in 2024',
+        excerpt: 'A curated list of standout limited runs and collaborations for 2024.',
+        content: 'From anniversary releases to festival exclusives, 2024 delivers exciting limited edition cigars worth pursuing. Brands are experimenting with hybrid seeds, rare wrappers, and collaboration blends that showcase regional terroir. Secure boxes early and document tasting notes, because many of these releases will not be repeated once the final shipment ships.',
+        image: '/images/blog/limited-edition-2024.jpg',
+        author: 'Victor Le',
+        category: 'News',
+        slug: 'limited-edition-cigars-2024',
+        isPublished: true,
+        publishDate: daysAgo(5),
+        views: 264,
+        createdAt: daysAgo(5),
+        updatedAt: daysAgo(5)
       }
     ]);
     console.log('Created blog posts');

@@ -4,29 +4,49 @@ const User = require('../models/User');
 // Verify JWT token
 const protect = async (req, res, next) => {
   try {
+    let userId;
     let token;
 
-    // Check for token in header
+    // Prefer Authorization header when present
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
 
-    if (!token) {
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_here');
+      userId = decoded._id;
+    } else if (req.session && req.session.user && req.session.user.id) {
+      userId = req.session.user.id;
+    }
+
+    if (!userId) {
       return res.status(401).json({ message: 'Not authorized to access this route' });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_here');
+    const user = await User.findById(userId).select('-password');
 
-    // Find user by id
-    req.user = await User.findById(decoded._id).select('-password');
-
-    if (!req.user) {
+    if (!user) {
+      if (req.session && req.session.user) {
+        delete req.session.user;
+      }
       return res.status(401).json({ message: 'User not found' });
+    }
+
+    req.user = user;
+
+    // Refresh session data so role changes are picked up
+    if (req.session) {
+      req.session.user = {
+        id: user._id.toString(),
+        role: user.role
+      };
     }
 
     next();
   } catch (error) {
+    if (req.session && req.session.user) {
+      delete req.session.user;
+    }
     return res.status(401).json({ message: 'Not authorized to access this route' });
   }
 };
